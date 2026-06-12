@@ -74,7 +74,7 @@ export async function queueOfflineOrder(
   const store = tx.objectStore(QUEUE_STORE);
 
   const entry: QueueEntry = {
-    id: order.id || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: order.id || `offline_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     order,
     items,
     payments,
@@ -206,8 +206,8 @@ export async function simulateMobileMoneyPayout(
   }
 
   // Generate random IDs for the mocked transaction
-  const transactionId = 'TXN_' + Math.random().toString(36).substr(2, 9).toUpperCase();
-  const providerReference = 'MOMO_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  const transactionId = 'TXN_' + Math.random().toString(36).slice(2, 11).toUpperCase();
+  const providerReference = 'MOMO_' + Math.random().toString(36).slice(2, 11).toUpperCase();
 
   // Simulate success rate (95% success rate for simulation)
   const isSuccessful = Math.random() < 0.95;
@@ -242,7 +242,7 @@ export async function simulatePaystackPayment(
     return { success: false, reference: '', error: 'Invalid card number' };
   }
 
-  const reference = 'PAY_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  const reference = 'PAY_' + Math.random().toString(36).slice(2, 11).toUpperCase();
   return {
     success: true,
     reference
