@@ -23,11 +23,20 @@ export function calculatePercentageCommission(amount: number, rate: number): num
 // 2. OFFLINE INDEXEDDB CLIENT (FOR POS WORK)
 // ==========================================
 
+// Order items as queued offline: server-assigned references (order_id, batch_id,
+// unit_id) are filled in during sync, so they are optional here.
+export type QueuedOrderItem = Omit<OrderItem, 'id' | 'order_id' | 'batch_id' | 'unit_id'> &
+  Partial<Pick<OrderItem, 'order_id' | 'batch_id' | 'unit_id'>>;
+
+// Payments as queued offline: order_id and created_at are assigned during sync.
+export type QueuedPayment = Omit<Payment, 'id' | 'order_id' | 'created_at'> &
+  Partial<Pick<Payment, 'order_id' | 'created_at'>>;
+
 export interface QueueEntry {
   id: string;
   order: Omit<Order, 'id'> & { id?: string };
-  items: Omit<OrderItem, 'id'>[];
-  payments: Omit<Payment, 'id'>[];
+  items: QueuedOrderItem[];
+  payments: QueuedPayment[];
   retryCount: number;
   errorMessage?: string;
   createdAt: number;
@@ -66,8 +75,8 @@ export function openIndexedDB(): Promise<IDBDatabase> {
  */
 export async function queueOfflineOrder(
   order: Omit<Order, 'id'> & { id?: string },
-  items: Omit<OrderItem, 'id'>[],
-  payments: Omit<Payment, 'id'>[]
+  items: QueuedOrderItem[],
+  payments: QueuedPayment[]
 ): Promise<string> {
   const db = await openIndexedDB();
   const tx = db.transaction(QUEUE_STORE, 'readwrite');
