@@ -114,7 +114,7 @@ export default function POSSystem() {
     }));
 
     const orderPayments = [{
-      provider: paymentProvider,
+      provider: paymentProvider === 'card' ? ('paystack' as const) : paymentProvider,
       amount: cartTotal,
       reference: paymentProvider === 'card' ? 'PAYSTACK_REF_MOCK' : 'CASH_MOCK',
       status: online ? ('completed' as const) : ('pending' as const)
