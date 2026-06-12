@@ -1,0 +1,127 @@
+1. PROJECT NAME (WORKING)
+
+Import Commerce Operating System (ICOS) (For our first and immediate, American Home Ventures)
+
+2. PURPOSE
+
+To digitize and automate:
+
+Import tracking
+Inventory control
+Sales processing
+Agent commissions
+Credit sales
+Financial reporting
+
+for a multi-import retail business.
+
+3. PROBLEM STATEMENT
+
+Current issues:
+
+Missing money
+Stock inconsistency
+Manual bookkeeping
+No audit trail
+No structured credit system
+No shipment visibility
+4. SOLUTION OVERVIEW
+
+A unified system with:
+
+4.1 Admin Dashboard
+Business control center
+analytics
+inventory control
+4.2 POS System
+walk-in sales
+barcode scanning
+offline support
+4.3 Mobile App
+inventory staff
+stock checking
+future delivery system
+5. CORE SYSTEM PRINCIPLES
+1. Ledger-based truth
+
+Nothing is overwritten — everything is recorded.
+
+2. Batch-based inventory
+
+Every item belongs to a shipment batch.
+
+3. Wallet-based commission
+
+Agents earn from internal wallet system.
+
+4. Role-based access
+
+Every staff sees only what they need.
+
+5. Offline-first POS
+
+Sales must not fail due to internet issues.
+
+6. SYSTEM MODULES
+Inventory Module
+Products
+Variants
+Batches
+Serial tracking
+Sales Module
+POS
+Orders
+Receipts
+Discounts
+Finance Module
+Payments
+Expenses
+Profit reports
+Credit system
+Logistics Module
+Shipments
+Arrival tracking
+Commission Module
+Agent wallets
+Withdrawals
+Referral tracking
+Admin Module
+Roles
+Audit logs
+Reports
+7. FUTURE EXPANSION
+Multi-vendor marketplace
+WhatsApp ordering bot
+Instagram catalog sync
+Delivery tracking system
+AI inventory forecasting
+8. SUCCESS METRICS
+
+System is successful if:
+
+No missing stock
+No unexplained cash loss
+Real-time inventory visibility
+Fast checkout at POS
+Accurate profit reports
+Staff accountability enforced
+9. TECH STACK
+Next.js (web apps)
+React Native (mobile)
+Supabase (backend)
+Edge Functions (logic layer)
+Paystack (payments)
+MoMo API (payouts later)
+10. FINAL NOTE
+
+This system is not a “project”.
+
+It is a business backbone system.
+
+If built correctly, it replaces:
+
+notebooks
+Excel sheets
+WhatsApp tracking
+manual accounting
+memory-based inventory control

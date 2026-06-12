@@ -1,0 +1,240 @@
+1. SYSTEM OVERVIEW
+
+You are building a multi-layer commerce operating system:
+
+Core Modules
+Inventory Management (batch + serial tracking)
+POS (offline-capable sales system)
+Shipment Tracking (import workflow)
+Credit Sales System
+Wallet + Commission System (agents/vendors)
+Accounting & Reporting
+Multi-role Admin System
+Customer Management
+Future: Marketplace (multi-vendor)
+2. HIGH-LEVEL ARCHITECTURE
+Frontend Layer
+---------------
+- Admin Web App (Next.js)
+- POS Web App (Next.js / PWA)
+- Mobile App (React Native)
+
+Backend Layer
+-------------
+- Supabase (PostgreSQL + Auth + Realtime)
+- Edge Functions (business logic)
+
+External Integrations
+---------------------
+- Paystack (payments)
+- Mobile Money API (future payouts)
+- WhatsApp API (future)
+- Instagram catalog (future)
+3. CORE DATABASE DESIGN (SUPABASE SQL)
+USERS & ROLES
+create table users (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  phone text,
+  email text,
+  role text, -- admin, cashier, manager, inventory, agent, customer
+  created_at timestamp default now()
+);
+create table roles (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  permissions jsonb
+);
+PRODUCTS
+create table products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text,
+  has_serial boolean default false,
+  description text,
+  created_at timestamp default now()
+);
+create table product_variants (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references products(id),
+  variant_name text,
+  sku text unique,
+  barcode text unique,
+  retail_price numeric,
+  wholesale_price numeric
+);
+SHIPMENTS (IMPORT CORE)
+create table shipments (
+  id uuid primary key default gen_random_uuid(),
+  shipment_code text,
+  supplier_country text default 'USA',
+  status text, -- pending, in_transit, received
+  arrival_date date,
+  total_cost numeric,
+  created_at timestamp default now()
+);
+create table shipment_items (
+  id uuid primary key default gen_random_uuid(),
+  shipment_id uuid references shipments(id),
+  product_id uuid references products(id),
+  quantity int,
+  cost_price numeric
+);
+INVENTORY BATCHES (CRITICAL)
+create table inventory_batches (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references products(id),
+  shipment_id uuid references shipments(id),
+  quantity_received int,
+  remaining_quantity int,
+  cost_price numeric,
+  created_at timestamp default now()
+);
+SERIALIZED ITEMS
+create table inventory_units (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid references inventory_batches(id),
+  serial_number text unique,
+  status text -- available, sold, damaged
+);
+INVENTORY LEDGER (SOURCE OF TRUTH)
+create table inventory_ledger (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references products(id),
+  type text, -- IN, OUT, ADJUSTMENT
+  quantity int,
+  reference_id text,
+  created_at timestamp default now()
+);
+CUSTOMERS
+create table customers (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  phone text,
+  address text,
+  created_at timestamp default now()
+);
+ORDERS
+create table orders (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references customers(id),
+  total_amount numeric,
+  payment_status text, -- paid, partial, credit
+  created_by uuid references users(id),
+  created_at timestamp default now()
+);
+create table order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id),
+  product_id uuid references products(id),
+  quantity int,
+  unit_price numeric,
+  batch_id uuid
+);
+WALLET SYSTEM (AGENTS / COMMISSION)
+create table wallets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id),
+  balance numeric default 0
+);
+create table wallet_transactions (
+  id uuid primary key default gen_random_uuid(),
+  wallet_id uuid references wallets(id),
+  amount numeric,
+  type text, -- credit, debit
+  reason text,
+  reference_id text,
+  created_at timestamp default now()
+);
+WITHDRAWALS
+create table withdrawals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id),
+  amount numeric,
+  network text,
+  phone text,
+  status text, -- pending, processing, completed
+  created_at timestamp default now()
+);
+CREDIT SYSTEM
+create table credit_accounts (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references customers(id),
+  total_debt numeric default 0
+);
+create table credit_payments (
+  id uuid primary key default gen_random_uuid(),
+  credit_account_id uuid references credit_accounts(id),
+  amount numeric,
+  created_at timestamp default now()
+);
+PAYMENTS
+create table payments (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id),
+  provider text, -- paystack
+  amount numeric,
+  reference text,
+  status text,
+  created_at timestamp default now()
+);
+EXPENSES
+create table expenses (
+  id uuid primary key default gen_random_uuid(),
+  title text,
+  amount numeric,
+  category text,
+  created_at timestamp default now()
+);
+AUDIT LOGS (VERY IMPORTANT)
+create table audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid,
+  action text,
+  details jsonb,
+  created_at timestamp default now()
+);
+4. BUSINESS LOGIC FLOW
+Sale Flow
+POS → Order Created → Stock deducted (ledger)
+→ Payment recorded → Wallet updated → Audit logged
+Commission Flow
+Order created
+→ system calculates agent share
+→ wallet credited
+→ withdrawal possible
+Withdrawal Flow
+Agent requests withdrawal
+→ system checks wallet balance
+→ creates withdrawal record
+→ sends payout API request
+→ marks completed
+5. PROS & CONS
+✅ Pros
+Scalable to marketplace
+Solves stock confusion permanently
+Supports credit sales cleanly
+Supports multi-price imports
+Audit-proof system
+Future vendor expansion ready
+❌ Cons
+Complex initial setup
+Requires disciplined data entry
+Staff training needed
+Offline sync adds engineering complexity
+6. MITIGATIONS
+Problem: Complexity
+
+✔ Solution: build in phases (POS → inventory → finance → marketplace)
+
+Problem: Staff mistakes
+
+✔ Solution: role-based access + audit logs
+
+Problem: Internet instability
+
+✔ Solution: offline queue + sync system
+
+Problem: Fraud / missing money
+
+✔ Solution: ledger-based accounting (never overwrite stock)

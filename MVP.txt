@@ -1,0 +1,50 @@
+Note: This is what's expected after all setups are made after some years, so not all implementations would be tackled at the moment.
+
+Development Roadmap
+Phase 1 (MVP)
+
+Build:
+
+Products
+Inventory
+POS
+Orders
+Customers
+Payments
+Reports
+
+Ignore:
+
+Riders
+Marketplace
+WhatsApp automation
+Phase 2
+
+Add:
+
+E-commerce
+Customer accounts
+Wishlist
+Cart
+Tracking
+Phase 3
+
+Add:
+
+Delivery system
+Mobile app
+Notifications
+Phase 4
+
+Add:
+
+Vendors
+Multiple warehouses
+Multi-seller support
+Phase 5
+
+Add:
+
+WhatsApp ordering
+Instagram sync
+AI automation

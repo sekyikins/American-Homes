@@ -1,0 +1,198 @@
+🚀 MASTER BUILD PROMPT (FULL SYSTEM SCAFFOLD)
+
+You are to generate a complete production-ready multi-app system for an import-based retail business. The system must be built as a monorepo-style architecture with separate folders for each application, but sharing a consistent backend (Supabase/PostgreSQL).
+
+1. SYSTEM OVERVIEW
+
+Build a full commerce operating system consisting of:
+
+Applications
+admin-dashboard (Next.js)
+pos-system (Next.js PWA with offline support)
+mobile-app (React Native Expo)
+shared-backend (Supabase schema + edge functions)
+2. CORE BUSINESS DOMAIN
+
+The system must support:
+
+Product importation from multiple suppliers
+Shipments with 1,000–2,000 items per batch
+Inventory tracking using batches + serial numbers
+Real-time POS sales (walk-in customers)
+Customer management (retail + wholesale)
+Credit sales system (customers can owe money)
+Agent/referral commission wallet system
+Withdrawal system (mobile money payouts via API)
+Full accounting (profit, expenses, revenue)
+Multi-role staff system
+Audit logs for every sensitive action
+Future support for multi-vendor marketplace
+3. ARCHITECTURE REQUIREMENTS
+Frontend
+Next.js (Admin + POS)
+React Native Expo (Mobile app)
+Shared UI components where possible
+Backend
+Supabase (PostgreSQL + Auth + Realtime)
+Edge Functions for:
+commission calculation
+wallet updates
+withdrawals
+stock movements
+credit updates
+4. MONOREPO STRUCTURE
+
+Generate project structure like:
+
+/apps
+  /admin-dashboard
+  /pos-system
+  /mobile-app
+
+/packages
+  /ui (shared components)
+  /utils
+  /types
+
+/supabase
+  /migrations
+  /functions
+  /seed
+5. DATABASE (MUST IMPLEMENT FULL SCHEMA)
+
+Implement Supabase SQL migrations for:
+
+Core Tables
+users
+roles
+customers
+products
+product_variants
+shipments
+shipment_items
+inventory_batches
+inventory_units (serial tracking)
+inventory_ledger (source of truth)
+orders
+order_items
+payments
+wallets
+wallet_transactions
+withdrawals
+credit_accounts
+credit_payments
+expenses
+audit_logs
+6. BUSINESS LOGIC RULES (CRITICAL)
+Inventory
+NEVER store stock as a single number
+stock must be derived from inventory_ledger
+Pricing
+support multiple cost prices per product via batches
+profit must be calculated per batch
+Sales
+
+When a sale happens:
+
+Create order
+Deduct stock via ledger entry
+Record payment
+Update wallet commissions (if applicable)
+Log audit event
+Credit Sales
+allow partial payments
+maintain customer debt ledger
+Wallet System
+agents have internal wallet balance
+earnings are credited internally first
+withdrawals are processed separately
+Withdrawals
+create withdrawal request
+verify wallet balance
+send payout via external API (MoMo/Hubtel/Flutterwave simulation layer)
+update status (pending → completed)
+7. OFFLINE SUPPORT (POS SYSTEM)
+
+POS must:
+
+work without internet temporarily
+store transactions locally (IndexedDB)
+sync when connection is restored
+prevent duplicate sales during sync
+8. ROLES & PERMISSIONS
+
+Implement role-based access:
+
+admin
+manager
+cashier
+inventory officer
+agent
+customer
+
+Each role must have permission-based restrictions.
+
+9. REQUIRED FEATURES PER APP
+Admin Dashboard
+full business control
+reports
+inventory management
+shipments
+credit monitoring
+financial analytics
+POS System
+barcode scanning
+quick search
+offline-first sales
+receipt generation (digital first, printer-ready later)
+Mobile App
+inventory scanning
+stock receiving
+basic POS view (optional)
+future delivery module support
+10. EDGE FUNCTIONS (SUPABASE)
+
+Implement server-side logic for:
+
+calculate commissions
+update wallets
+process withdrawals
+handle stock movements
+enforce credit rules
+generate audit logs
+11. AUDIT SYSTEM (MANDATORY)
+
+Every action must log:
+
+user
+action type
+before/after data
+timestamp
+12. NON-FUNCTIONAL REQUIREMENTS
+scalable to 10,000+ products
+support 1,000–2,000 items per shipment
+resilient to network failure
+optimized for fast POS usage
+secure financial logic (no client-side trust)
+13. OUTPUT EXPECTED
+
+Generate:
+
+Full monorepo folder structure
+Supabase SQL migration files
+Basic Next.js app scaffolds (admin + POS)
+React Native Expo scaffold
+Shared types and utilities package
+Example edge functions (wallet + sales + withdrawal)
+Basic API/service layer abstraction
+Clear separation between apps
+Minimal working UI for each app (not design-heavy, functional only)
+14. IMPORTANT CONSTRAINTS
+Do NOT merge apps into one codebase UI
+Do NOT skip database design
+Do NOT hardcode business logic in frontend
+Keep system modular and scalable
+Prioritize correctness over UI polish
+15. GOAL
+
+Create a production-grade foundation for an import retail business system that can later evolve into a multi-vendor marketplace.

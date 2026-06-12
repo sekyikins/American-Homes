@@ -1,0 +1,13 @@
+{
+  "name": "@icos/ui",
+  "version": "1.0.0",
+  "main": "index.tsx",
+  "types": "index.tsx",
+  "private": true,
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0"
+  }
+}
