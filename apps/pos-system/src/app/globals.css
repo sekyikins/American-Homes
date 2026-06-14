@@ -16,6 +16,10 @@
   }
 }
 
+html {
+  font-size: 1.05rem;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -25,4 +29,6 @@ body {
     )
     rgb(var(--background-start-rgb));
   min-height: 100vh;
+  font-weight: 450;
+  -webkit-font-smoothing: subpixel-antialiased;
 }
