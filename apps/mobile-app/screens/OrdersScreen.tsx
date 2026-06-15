@@ -1,197 +1,346 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { supabase } from '../lib/supabase';
+import { useTheme } from '../styles/theme';
 
-const dummyOrders = [
-  { id: 'ORD-2026-904', date: 'June 14, 2026', total: '$1,450.00', status: 'Completed', customer: 'David Miller' },
-  { id: 'ORD-2026-903', date: 'June 14, 2026', total: '$2,800.00', status: 'Pending Sync', customer: 'Sarah Jenkins' },
-  { id: 'ORD-2026-902', date: 'June 13, 2026', total: '$890.00', status: 'Completed', customer: 'Robert Chen' },
+type PaymentStatus = 'paid' | 'partial' | 'credit' | 'pending_resolution';
+
+type Order = {
+  id: string;
+  total_amount: number;
+  payment_status: PaymentStatus;
+  created_at: string;
+  customer_name: string;
+  customer_phone: string;
+};
+
+type FilterKey = 'all' | PaymentStatus;
+
+
+
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'credit', label: 'Credit' },
+  { key: 'partial', label: 'Partial' },
+  { key: 'pending_resolution', label: 'Pending' },
 ];
 
 export default function OrdersScreen() {
-  return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.pageSubtitle}>Manage sales, shipments, and customer orders.</Text>
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
 
-      {/* Development Banner */}
-      <View style={styles.banner}>
-        <View style={styles.bannerHeader}>
-          <Text style={styles.bannerIcon}>✦</Text>
-          <Text style={styles.bannerTitle}>Sales Integration Pending</Text>
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<FilterKey>('all');
+
+  const STATUS_CONFIG: Record<
+    PaymentStatus,
+    { label: string; color: string; bg: string; border: string }
+  > = {
+    paid: {
+      label: 'Paid',
+      color: colors.success,
+      bg: colors.successBg,
+      border: colors.successBorder,
+    },
+    partial: {
+      label: 'Partial',
+      color: colors.pending,
+      bg: colors.pendingBg,
+      border: colors.pendingBorder,
+    },
+    credit: {
+      label: 'Credit',
+      color: colors.error,
+      bg: colors.errorBg,
+      border: colors.errorBorder,
+    },
+    pending_resolution: {
+      label: 'Pending',
+      color: colors.textDim,
+      bg: colors.card,
+      border: colors.border,
+    },
+  };
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('orders')
+      .select(
+        'id, total_amount, payment_status, created_at, customers ( name, phone )'
+      )
+      .order('created_at', { ascending: false })
+      .limit(60);
+
+    if (error) console.warn('Supabase error (orders):', error.message);
+
+    if (data) {
+      setOrders(
+        data.map(o => ({
+          id: o.id,
+          total_amount: Number(o.total_amount) || 0,
+          payment_status: (o.payment_status as PaymentStatus) || 'pending_resolution',
+          created_at: o.created_at,
+          customer_name: (o.customers as any)?.name || 'Walk-in Customer',
+          customer_phone: (o.customers as any)?.phone || '',
+        }))
+      );
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+  };
+
+  const filtered =
+    filter === 'all' ? orders : orders.filter(o => o.payment_status === filter);
+
+  const totalRevenue = filtered.reduce((s, o) => s + o.total_amount, 0);
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+  const renderItem = ({ item }: { item: Order }) => {
+    const cfg = STATUS_CONFIG[item.payment_status] || STATUS_CONFIG.pending_resolution;
+    return (
+      <View style={styles.orderCard}>
+        <View style={[styles.orderStatusBar, { backgroundColor: cfg.color }]} />
+        <View style={styles.orderBody}>
+          <View style={styles.orderLeft}>
+            <Text style={styles.orderId}>
+              #{item.id.slice(0, 8).toUpperCase()}
+            </Text>
+            <Text style={styles.orderCustomer}>{item.customer_name}</Text>
+            <Text style={styles.orderDate}>{formatDate(item.created_at)}</Text>
+          </View>
+          <View style={styles.orderRight}>
+            <Text style={styles.orderTotal}>
+              $
+              {item.total_amount.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+              })}
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: cfg.bg, borderColor: cfg.border },
+              ]}
+            >
+              <Text style={[styles.statusText, { color: cfg.color }]}>
+                {cfg.label}
+              </Text>
+            </View>
+          </View>
         </View>
-        <Text style={styles.bannerDescription}>
-          The orders registry is currently operating in read-only offline mode. Full synchronization with the central POS ledger will be deployed in the next update.
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Filter tabs */}
+      <View style={styles.filterBar}>
+        {FILTERS.map(f => (
+          <TouchableOpacity
+            key={f.key}
+            style={[
+              styles.filterTab,
+              filter === f.key && styles.filterTabActive,
+            ]}
+            onPress={() => setFilter(f.key)}
+            activeOpacity={0.75}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                filter === f.key && styles.filterTextActive,
+              ]}
+            >
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Summary */}
+      <View style={styles.summaryBar}>
+        <Text style={styles.summaryCount}>
+          {filtered.length} order{filtered.length !== 1 ? 's' : ''}
+        </Text>
+        <Text style={styles.summaryRevenue}>
+          $
+          {totalRevenue.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+          })}{' '}
+          total
         </Text>
       </View>
 
-      {/* Mock Orders Grid */}
-      <Text style={styles.sectionTitle}>Recent Orders (Offline Cache)</Text>
-      <View style={styles.card}>
-        {dummyOrders.map((order, idx) => {
-          const isPending = order.status === 'Pending Sync';
-          return (
-            <View
-              key={order.id}
-              style={[
-                styles.orderRow,
-                idx < dummyOrders.length - 1 && styles.orderDivider,
-              ]}
-            >
-              <View style={styles.orderLeft}>
-                <Text style={styles.orderId}>{order.id}</Text>
-                <Text style={styles.orderMeta}>
-                  {order.customer} • {order.date}
-                </Text>
-              </View>
-              <View style={styles.orderRight}>
-                <Text style={styles.orderTotal}>{order.total}</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    isPending ? styles.statusPending : styles.statusCompleted,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      isPending ? styles.statusTextPending : styles.statusTextCompleted,
-                    ]}
-                  >
-                    {order.status}
-                  </Text>
-                </View>
-              </View>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>No orders found</Text>
+              <Text style={styles.emptySubtitle}>
+                {filter === 'all'
+                  ? 'Orders created from the POS system will appear here.'
+                  : `No ${filter} orders on record.`}
+              </Text>
             </View>
-          );
-        })}
-      </View>
-    </ScrollView>
+          }
+        />
+      )}
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#09090b',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 36,
-  },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fafafa',
-    letterSpacing: -0.5,
-  },
-  pageSubtitle: {
-    fontSize: 13,
-    color: '#71717a',
-    marginTop: 6,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#a1a1aa',
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  banner: {
-    backgroundColor: '#1e1b4b',
-    borderWidth: 1,
-    borderColor: '#3730a3',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 28,
-  },
-  bannerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  bannerIcon: {
-    color: '#818cf8',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  bannerTitle: {
-    color: '#fafafa',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  bannerDescription: {
-    color: '#a1a1aa',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  card: {
-    backgroundColor: '#18181b',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#27272a',
-    overflow: 'hidden',
-  },
-  orderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  orderDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
-  },
-  orderLeft: {
-    flex: 1,
-  },
-  orderId: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fafafa',
-  },
-  orderMeta: {
-    fontSize: 12,
-    color: '#71717a',
-    marginTop: 4,
-  },
-  orderRight: {
-    alignItems: 'flex-end',
-  },
-  orderTotal: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fafafa',
-    fontVariant: ['tabular-nums'],
-  },
-  statusBadge: {
-    marginTop: 6,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-  },
-  statusCompleted: {
-    backgroundColor: '#022c22',
-    borderColor: '#065f46',
-  },
-  statusPending: {
-    backgroundColor: '#3b0764',
-    borderColor: '#581c87',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  statusTextCompleted: {
-    color: '#34d399',
-  },
-  statusTextPending: {
-    color: '#c084fc',
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+
+    filterBar: {
+      flexDirection: 'row',
+      paddingHorizontal: 14,
+      paddingTop: 14,
+      paddingBottom: 8,
+      gap: 6,
+    },
+    filterTab: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    filterTabActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterText: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
+    filterTextActive: { color: '#ffffff' },
+
+    summaryBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+    },
+    summaryCount: { fontSize: 12, color: colors.textDim },
+    summaryRevenue: { fontSize: 13, fontWeight: '700', color: colors.text },
+
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    list: { paddingHorizontal: 14, paddingBottom: 24, gap: 10 },
+
+    orderCard: {
+      flexDirection: 'row',
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    orderStatusBar: { width: 3 },
+    orderBody: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 14,
+    },
+    orderLeft: { flex: 1 },
+    orderId: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+      fontVariant: ['tabular-nums'],
+      letterSpacing: 0.5,
+    },
+    orderCustomer: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 3,
+    },
+    orderDate: { fontSize: 11, color: colors.textDim, marginTop: 2 },
+
+    orderRight: { alignItems: 'flex-end', gap: 6 },
+    orderTotal: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: colors.text,
+      fontVariant: ['tabular-nums'],
+    },
+    statusBadge: {
+      borderRadius: 7,
+      borderWidth: 1,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+    },
+    statusText: { fontSize: 11, fontWeight: '700' },
+
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 80,
+      paddingHorizontal: 32,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 13,
+      color: colors.textDim,
+      textAlign: 'center',
+      marginTop: 8,
+      lineHeight: 18,
+    },
+  });

@@ -6,12 +6,24 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#09090b"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.americanhomeventures.icos"
+      "bundleIdentifier": "com.americanhomeventures.icos",
+      "icon": "./assets/icon.png"
     },
     "android": {
-      "package": "com.americanhomeventures.icos"
+      "package": "com.americanhomeventures.icos",
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#09090b"
+      }
     }
   }
 }

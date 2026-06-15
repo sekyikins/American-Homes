@@ -71,6 +71,12 @@ export default function AdminDashboard() {
       ]);
       console.timeEnd('AdminDashboard-Supabase-Load');
 
+      if (shipmentsResult.error) console.error('Supabase error (shipments):', shipmentsResult.error.message);
+      if (batchesResult.error) console.error('Supabase error (inventory_batches):', batchesResult.error.message);
+      if (creditsResult.error) console.error('Supabase error (credit_accounts):', creditsResult.error.message);
+      if (agentsResult.error) console.error('Supabase error (users/agents):', agentsResult.error.message);
+      if (auditsResult.error) console.error('Supabase error (audit_logs):', auditsResult.error.message);
+
       const shipmentsData = shipmentsResult.data;
       const batchesData = batchesResult.data;
       const creditsData = creditsResult.data;

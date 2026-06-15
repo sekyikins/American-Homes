@@ -4,8 +4,11 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  ScrollView,
+  FlatList,
+  RefreshControl,
 } from 'react-native';
+
+import { useTheme } from '../styles/theme';
 
 interface InventoryItem {
   id: string;
@@ -19,140 +22,146 @@ interface InventoryScreenProps {
   stockLevels: InventoryItem[];
   skuSearch: string;
   setSkuSearch: (text: string) => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export default function InventoryScreen({
   stockLevels,
   skuSearch,
   setSkuSearch,
+  refreshing = false,
+  onRefresh,
 }: InventoryScreenProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+
   const filteredItems = stockLevels.filter(
     (item) =>
       item.name.toLowerCase().includes(skuSearch.toLowerCase()) ||
       item.sku.toLowerCase().includes(skuSearch.toLowerCase())
   );
 
-  return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.pageSubtitle}>Query current remaining stock derived from ledger.</Text>
+  const renderItem = ({ item, index }: { item: InventoryItem; index: number }) => (
+    <View
+      style={[
+        styles.listItem,
+        index < filteredItems.length - 1 && styles.listItemBorder,
+      ]}
+    >
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemSku}>
+          SKU: {item.sku}{item.serialized ? '  ·  Serialized' : ''}
+        </Text>
+      </View>
+      <View style={styles.stockBadge}>
+        <Text style={styles.stockBadgeText}>{item.stock}</Text>
+      </View>
+    </View>
+  );
 
-      <View style={styles.card}>
+  return (
+    <View style={styles.container}>
+      {/* ── Static search header ──────────────────────────────────────────── */}
+      <View style={styles.staticHeader}>
         <TextInput
           style={styles.input}
-          placeholder="Search by SKU or Product Name..."
-          placeholderTextColor="#71717a"
+          placeholder="Search by SKU or product name…"
+          placeholderTextColor={colors.textDim}
           value={skuSearch}
           onChangeText={setSkuSearch}
+          returnKeyType="search"
         />
-
-        <View style={styles.listContainer}>
-          {filteredItems.map((item) => (
-            <View key={item.id} style={styles.listItem}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemSku}>
-                  SKU: {item.sku} {item.serialized ? '• Serialized' : ''}
-                </Text>
-              </View>
-              <View style={styles.stockBadge}>
-                <Text style={styles.stockBadgeText}>{item.stock}</Text>
-              </View>
-            </View>
-          ))}
-          {filteredItems.length === 0 && (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No products found matching "{skuSearch}"</Text>
-            </View>
-          )}
-        </View>
       </View>
-    </ScrollView>
+
+      {/* ── Scrollable inventory list ─────────────────────────────────────── */}
+      <FlatList
+        data={filteredItems}
+        keyExtractor={item => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {skuSearch
+                ? `No products matching "${skuSearch}"`
+                : 'No inventory data yet'}
+            </Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#09090b',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 36,
-  },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fafafa',
-    letterSpacing: -0.5,
-  },
-  pageSubtitle: {
-    fontSize: 13,
-    color: '#71717a',
-    marginTop: 6,
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: '#18181b',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#27272a',
+const createStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+
+  // ── Static search header ───────────────────────────────────────────────────
+  staticHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   input: {
-    backgroundColor: '#09090b',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#27272a',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    color: '#fafafa',
-    fontSize: 15,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    color: colors.text,
+    fontSize: 14,
   },
-  listContainer: {
-    marginTop: 10,
+
+  // ── List ──────────────────────────────────────────────────────────────────
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 36,
   },
   listItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 15,
+  },
+  listItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
+    borderBottomColor: colors.border,
   },
-  itemInfo: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  itemName: {
-    fontSize: 15,
-    color: '#fafafa',
-    fontWeight: '700',
-  },
-  itemSku: {
-    fontSize: 13,
-    color: '#a1a1aa',
-    marginTop: 4,
-  },
+  itemInfo: { flex: 1, paddingRight: 12 },
+  itemName: { fontSize: 15, color: colors.text, fontWeight: '700' },
+  itemSku: { fontSize: 12, color: colors.textMuted, marginTop: 3 },
+
   stockBadge: {
-    backgroundColor: '#27272a',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderWidth: 1,
-    borderColor: '#3f3f46',
+    borderColor: colors.border,
+    minWidth: 48,
+    alignItems: 'center',
   },
   stockBadgeText: {
-    color: '#10b981',
-    fontSize: 13,
+    color: colors.success,
+    fontSize: 14,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
-  emptyContainer: {
-    paddingVertical: 24,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#71717a',
-    fontSize: 14,
-  },
+
+  emptyContainer: { paddingVertical: 60, alignItems: 'center' },
+  emptyText: { color: colors.textDim, fontSize: 14 },
 });
