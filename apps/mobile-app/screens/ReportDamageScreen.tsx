@@ -1,0 +1,248 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
+import { useTheme } from '../styles/theme';
+import { useMockData } from '../context/MockDataContext';
+import { Hammer, ChevronDown } from 'lucide-react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ReportDamage'>;
+
+const severities: ('Low' | 'Medium' | 'High')[] = ['Low', 'Medium', 'High'];
+
+export default function ReportDamageScreen({ route, navigation }: Props) {
+  const { colors, typography, commonStyles } = useTheme();
+  const { products, units, batches, addDamageReport } = useMockData();
+
+  const initialProductId = route.params?.productId;
+
+  const [productId, setProductId] = useState(initialProductId || products[0]?.id || '');
+  const [serialNumber, setSerialNumber] = useState('');
+  const [severity, setSeverity] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  const [description, setDescription] = useState('');
+
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [showSerialPicker, setShowSerialPicker] = useState(false);
+
+  const selectedProduct = products.find(p => p.id === productId);
+
+  // Available serials for this product
+  const availableSerials = units.filter(u => {
+    if (u.status !== 'available') return false;
+    const batch = batches.find(b => b.id === u.batch_id);
+    return batch?.product_id === productId;
+  });
+
+  const handleSubmit = () => {
+    if (!productId || !description) {
+      Alert.alert('Error', 'Please fill in product and description');
+      return;
+    }
+
+    if (selectedProduct?.has_serial && !serialNumber) {
+      Alert.alert('Error', 'This product is serialized. Please select a serial number.');
+      return;
+    }
+
+    addDamageReport(productId, serialNumber, severity, description);
+
+    setSerialNumber('');
+    setDescription('');
+
+    navigation.navigate('ReportSuccess', {
+      title: 'Damage Logged',
+      message: `Damage report logged. Product unit marked as damaged and inventory level adjusted.`,
+    });
+  };
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: { padding: 20 },
+    formGroup: { marginBottom: 18 },
+    label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8 },
+    pickerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+    },
+    pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
+    severityContainer: { flexDirection: 'row', gap: 10 },
+    severityBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      alignItems: 'center',
+      backgroundColor: colors.card,
+    },
+    severityBtnActive: {
+      borderColor: colors.error,
+      backgroundColor: colors.error + '15',
+    },
+    severityText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    severityTextActive: { color: colors.error, fontWeight: '700' },
+    input: { ...commonStyles.input },
+    textArea: {
+      ...commonStyles.input,
+      height: 100,
+      textAlignVertical: 'top',
+    },
+    submitBtn: {
+      ...commonStyles.button,
+      marginTop: 20,
+      flexDirection: 'row',
+      gap: 8,
+      backgroundColor: colors.error,
+    },
+    submitBtnText: { ...commonStyles.buttonText },
+    modalOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      padding: 20,
+      zIndex: 1000,
+    },
+    pickerModal: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      maxHeight: '60%',
+      padding: 8,
+    },
+    pickerItem: {
+      padding: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pickerItemText: { fontSize: 15, color: colors.text },
+  });
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Product Selector */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Select Damaged Product</Text>
+          <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowProductPicker(true)}>
+            <Text style={styles.pickerBtnText}>
+              {selectedProduct ? selectedProduct.name : 'Choose a product'}
+            </Text>
+            <ChevronDown size={20} color={colors.textDim} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Serial Number Selector if Serialized */}
+        {selectedProduct?.has_serial && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Select Serial Number</Text>
+            <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowSerialPicker(true)}>
+              <Text style={styles.pickerBtnText}>
+                {serialNumber ? serialNumber : 'Choose a serial number'}
+              </Text>
+              <ChevronDown size={20} color={colors.textDim} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Severity */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Damage Severity</Text>
+          <View style={styles.severityContainer}>
+            {severities.map((sev) => {
+              const isActive = severity === sev;
+              return (
+                <TouchableOpacity
+                  key={sev}
+                  style={[styles.severityBtn, isActive && styles.severityBtnActive]}
+                  onPress={() => setSeverity(sev)}
+                >
+                  <Text style={[styles.severityText, isActive && styles.severityTextActive]}>{sev}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Description */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Description of Damage</Text>
+          <TextInput
+            style={styles.textArea}
+            placeholder="Describe the physical damage, how it happened, or current status..."
+            placeholderTextColor={colors.textDim}
+            multiline
+            numberOfLines={4}
+            value={description}
+            onChangeText={setDescription}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
+          <Hammer size={20} color="#fff" />
+          <Text style={styles.submitBtnText}>Submit Damage Report</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Product Modal */}
+      {showProductPicker && (
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowProductPicker(false)}>
+          <View style={styles.pickerModal}>
+            <FlatList
+              data={products}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.pickerItem}
+                  onPress={() => {
+                    setProductId(item.id);
+                    setSerialNumber('');
+                    setShowProductPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerItemText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Serial Modal */}
+      {showSerialPicker && (
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowSerialPicker(false)}>
+          <View style={styles.pickerModal}>
+            {availableSerials.length === 0 ? (
+              <View style={styles.pickerItem}><Text style={styles.pickerItemText}>No available serial units found in stock</Text></View>
+            ) : (
+              <FlatList
+                data={availableSerials}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.pickerItem}
+                    onPress={() => {
+                      setSerialNumber(item.serial_number);
+                      setShowSerialPicker(false);
+                    }}
+                  >
+                    <Text style={styles.pickerItemText}>{item.serial_number}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}

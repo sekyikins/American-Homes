@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,35 +6,52 @@ import {
   TextInput,
   FlatList,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
-
 import { useTheme } from '../styles/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+import { useMockData } from '../context/MockDataContext';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface InventoryItem {
   id: string;
+  product_id?: string;
   name: string;
   sku: string;
   stock: number;
   serialized: boolean;
 }
 
-interface InventoryScreenProps {
-  stockLevels: InventoryItem[];
-  skuSearch: string;
-  setSkuSearch: (text: string) => void;
-  refreshing?: boolean;
-  onRefresh?: () => void;
-}
-
-export default function InventoryScreen({
-  stockLevels,
-  skuSearch,
-  setSkuSearch,
-  refreshing = false,
-  onRefresh,
-}: InventoryScreenProps) {
+export default function InventoryScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
+  
+  const { products, variants, batches } = useMockData();
+  const [skuSearch, setSkuSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const stockMap: Record<string, number> = {};
+  batches.forEach(b => {
+    if (b.product_id) {
+      stockMap[b.product_id] = (stockMap[b.product_id] || 0) + b.remaining_quantity;
+    }
+  });
+
+  const stockLevels: InventoryItem[] = variants.map(v => {
+    const prod = products.find(p => p.id === v.product_id);
+    return {
+      id: v.id,
+      product_id: v.product_id,
+      name: prod ? `${prod.name} (${v.variant_name})` : v.variant_name,
+      sku: v.sku || '',
+      stock: stockMap[v.product_id] || 0,
+      serialized: prod?.has_serial || false,
+    };
+  });
 
   const filteredItems = stockLevels.filter(
     (item) =>
@@ -43,11 +60,17 @@ export default function InventoryScreen({
   );
 
   const renderItem = ({ item, index }: { item: InventoryItem; index: number }) => (
-    <View
+    <TouchableOpacity
       style={[
         styles.listItem,
         index < filteredItems.length - 1 && styles.listItemBorder,
       ]}
+      onPress={() => {
+        if (item.product_id) {
+          navigation.navigate('ProductDetail', { productId: item.product_id });
+        }
+      }}
+      activeOpacity={0.7}
     >
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.name}</Text>
@@ -58,8 +81,13 @@ export default function InventoryScreen({
       <View style={styles.stockBadge}>
         <Text style={styles.stockBadgeText}>{item.stock}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 800);
+  };
 
   return (
     <View style={styles.container}>
@@ -73,6 +101,18 @@ export default function InventoryScreen({
           onChangeText={setSkuSearch}
           returnKeyType="search"
         />
+        {/* Quick nav shortcuts */}
+        <View style={styles.quickNavRow}>
+          <TouchableOpacity style={styles.quickNavBtn} onPress={() => navigation.navigate('Customers')} activeOpacity={0.75}>
+            <Text style={styles.quickNavText}>Customers</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickNavBtn} onPress={() => navigation.navigate('Shipments')} activeOpacity={0.75}>
+            <Text style={styles.quickNavText}>Shipments</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickNavBtn} onPress={() => navigation.navigate('ReceiveStock', {})} activeOpacity={0.75}>
+            <Text style={styles.quickNavText}>Receive Stock</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Scrollable inventory list ─────────────────────────────────────── */}
@@ -123,6 +163,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingHorizontal: 14,
     color: colors.text,
     fontSize: 14,
+    marginBottom: 10,
+  },
+  quickNavRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickNavBtn: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  quickNavText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
 
   // ── List ──────────────────────────────────────────────────────────────────

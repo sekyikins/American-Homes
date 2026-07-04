@@ -7,9 +7,15 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../styles/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type Customer = {
   id: string;
@@ -21,6 +27,7 @@ type Customer = {
 
 export default function CustomersScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -71,9 +78,11 @@ export default function CustomersScreen() {
   const inDebtCount = customers.filter(c => c.total_debt > 0).length;
 
   const renderItem = ({ item: c, index: idx }: { item: Customer; index: number }) => (
-    <View
+    <TouchableOpacity
       key={c.id}
       style={[styles.row, idx < filtered.length - 1 && styles.divider]}
+      onPress={() => navigation.navigate('CustomerDetail', { customerId: c.id })}
+      activeOpacity={0.7}
     >
       <View
         style={[
@@ -105,7 +114,7 @@ export default function CustomersScreen() {
           <Text style={[styles.clearText, { color: colors.successText }]}>✓ Clear</Text>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   return (

@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../styles/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type PaymentStatus = 'paid' | 'partial' | 'credit' | 'pending_resolution';
 
@@ -37,6 +42,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 
 export default function OrdersScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -126,7 +132,11 @@ export default function OrdersScreen() {
   const renderItem = ({ item }: { item: Order }) => {
     const cfg = STATUS_CONFIG[item.payment_status] || STATUS_CONFIG.pending_resolution;
     return (
-      <View style={styles.orderCard}>
+      <TouchableOpacity
+        style={styles.orderCard}
+        onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}
+        activeOpacity={0.7}
+      >
         <View style={[styles.orderStatusBar, { backgroundColor: cfg.color }]} />
         <View style={styles.orderBody}>
           <View style={styles.orderLeft}>
@@ -155,7 +165,7 @@ export default function OrdersScreen() {
             </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

@@ -3,41 +3,68 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../styles/theme';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
+import { useMockData } from '../context/MockDataContext';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type Shipment = {
   id: string;
   shipment_code: string;
+  supplier_name?: string;
+  supplier_location?: string;
+  units_count?: number;
+  skus_count?: number;
   supplier_country: string;
   status: 'pending' | 'in_transit' | 'received';
   arrival_date: string | null;
   total_cost: number;
-  created_at: string;
 };
 
 export default function ShipmentsScreen() {
   const { colors } = useTheme();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation<NavigationProp>();
+  const mockData = useMockData();
 
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+
   const fetchShipments = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('shipments')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('shipments')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) console.warn('Supabase error (shipments):', error.message);
-    if (data) setShipments(data as Shipment[]);
-    setLoading(false);
+      if (error) {
+        console.warn('Supabase error (shipments):', error.message);
+      }
+
+      if (data && data.length > 0) {
+        setShipments(data as Shipment[]);
+      } else {
+        // Fallback to unified mock data
+        setShipments(mockData.shipments);
+      }
+    } catch (e) {
+      console.warn('Error fetching shipments:', e);
+      setShipments(mockData.shipments);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -50,45 +77,59 @@ export default function ShipmentsScreen() {
     setRefreshing(false);
   };
 
-  const pending  = shipments.filter(s => s.status === 'pending').length;
-  const transit  = shipments.filter(s => s.status === 'in_transit').length;
-  const received = shipments.filter(s => s.status === 'received').length;
-
-  const STATUS_CONFIG = {
-    pending: {
-      label: 'Pending',
-      color: colors.textDim,
-      bg: colors.card,
-      border: colors.borderLight,
-    },
-    in_transit: {
-      label: 'In Transit',
-      color: colors.pending,
-      bg: colors.pendingBg,
-      border: colors.pendingBorder,
-    },
-    received: {
-      label: 'Received',
-      color: colors.success,
-      bg: colors.successBg,
-      border: colors.successBorder,
-    },
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'received':
+        return { label: 'Received', color: colors.success, bg: colors.successBg, border: colors.successBorder };
+      case 'in_transit':
+        return { label: 'In Transit', color: colors.primary, bg: colors.primary + '20', border: colors.primary + '50' };
+      default:
+        return { label: 'Pending', color: colors.pending, bg: colors.pendingBg, border: colors.pendingBorder };
+    }
   };
 
-  const formatDate = (d: string | null) =>
-    d
-      ? new Date(d).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })
-      : 'TBD';
+  const formatArrivalDate = (dateStr: string | null) => {
+    if (!dateStr) return 'TBD';
+    return dateStr;
+  };
 
-  const formatCreated = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+  const renderItem = ({ item }: { item: Shipment }) => {
+    const badge = getStatusBadge(item.status);
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('ShipmentDetail', { shipmentId: item.id })}
+        activeOpacity={0.8}
+      >
+        {/* Top Row: Code & Status */}
+        <View style={styles.cardTopRow}>
+          <Text style={styles.shipmentCode}>{item.shipment_code}</Text>
+          <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+          </View>
+        </View>
+
+        {/* Middle: Supplier Name */}
+        <Text style={styles.supplierName}>{item.supplier_name || 'Direct Load'}</Text>
+
+        {/* Location */}
+        <Text style={styles.locationText}>
+          {item.supplier_location || item.supplier_country}
+        </Text>
+
+        {/* Bottom details */}
+        <View style={styles.cardBottomRow}>
+          <Text style={styles.bottomDetailText}>
+            {item.units_count || 0} units · {item.skus_count || 0} SKUs
+          </Text>
+          <Text style={styles.bottomDetailText}>
+            {item.status === 'received' ? 'Received' : `ETA: ${formatArrivalDate(item.arrival_date)}`}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -100,28 +141,11 @@ export default function ShipmentsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Stats row stays static at the top */}
-      <View style={styles.staticHeader}>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={[styles.statVal, { color: colors.textDim }]}>{pending}</Text>
-            <Text style={styles.statLbl}>Pending</Text>
-          </View>
-          <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={[styles.statVal, { color: colors.pending }]}>{transit}</Text>
-            <Text style={styles.statLbl}>In Transit</Text>
-          </View>
-          <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={[styles.statVal, { color: colors.success }]}>{received}</Text>
-            <Text style={styles.statLbl}>Received</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Shipment Cards List scrolls */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+      <FlatList
+        data={shipments}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -130,141 +154,90 @@ export default function ShipmentsScreen() {
             colors={[colors.primary]}
           />
         }
-      >
-        {shipments.map(ship => {
-          const cfg = STATUS_CONFIG[ship.status] || STATUS_CONFIG.pending;
-          return (
-            <View key={ship.id} style={styles.card}>
-              {/* Card header */}
-              <View style={styles.cardTop}>
-                <View style={styles.cardTopLeft}>
-                  <Text style={styles.code}>{ship.shipment_code}</Text>
-                  <Text style={styles.country}>{ship.supplier_country}</Text>
-                </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: cfg.bg, borderColor: cfg.border },
-                  ]}
-                >
-                  <Text style={[styles.statusText, { color: cfg.color }]}>
-                    {cfg.label}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Card footer */}
-              <View style={styles.cardFooter}>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>ARRIVAL</Text>
-                  <Text style={styles.metaValue}>{formatDate(ship.arrival_date)}</Text>
-                </View>
-                <View style={[styles.metaItem, styles.metaBorder]}>
-                  <Text style={styles.metaLabel}>COST</Text>
-                  <Text style={styles.metaValue}>
-                    ${Number(ship.total_cost).toLocaleString()}
-                  </Text>
-                </View>
-                <View style={[styles.metaItem, styles.metaBorder]}>
-                  <Text style={styles.metaLabel}>LOGGED</Text>
-                  <Text style={styles.metaValue}>{formatCreated(ship.created_at)}</Text>
-                </View>
-              </View>
-            </View>
-          );
-        })}
-
-        {shipments.length === 0 && (
+        ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>No shipments recorded yet</Text>
-            <Text style={styles.emptySubtext}>
-              Use the Admin Dashboard to log new import batches.
-            </Text>
           </View>
-        )}
-      </ScrollView>
+        }
+      />
     </View>
   );
 }
 
-const createStyles = (colors: any) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    staticHeader: { padding: 16, paddingBottom: 4 },
-    scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 36, gap: 12 },
-    center: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingTop: 80,
-    },
-
-    statsRow: {
-      flexDirection: 'row',
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: 'hidden',
-    },
-    statBox: { flex: 1, paddingVertical: 14, alignItems: 'center' },
-    statBorder: { borderLeftWidth: 1, borderLeftColor: colors.border },
-    statVal: {
-      fontSize: 22,
-      fontWeight: '700',
-      fontVariant: ['tabular-nums'],
-    },
-    statLbl: { fontSize: 11, color: colors.textDim, marginTop: 3, fontWeight: '500' },
-
-    card: {
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: 'hidden',
-    },
-    cardTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      padding: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    cardTopLeft: { flex: 1 },
-    code: { fontSize: 16, fontWeight: '700', color: colors.text },
-    country: { fontSize: 12, color: colors.textDim, marginTop: 3 },
-    statusBadge: {
-      borderRadius: 8,
-      borderWidth: 1,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-    },
-    statusText: { fontSize: 12, fontWeight: '700' },
-
-    cardFooter: { flexDirection: 'row' },
-    metaItem: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-    metaBorder: { borderLeftWidth: 1, borderLeftColor: colors.border },
-    metaLabel: {
-      fontSize: 9,
-      color: colors.textDark,
-      fontWeight: '700',
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-    },
-    metaValue: { fontSize: 13, color: colors.textMuted, fontWeight: '600', marginTop: 3 },
-
-    empty: { paddingVertical: 60, alignItems: 'center', gap: 8 },
-    emptyText: {
-      color: colors.textDim,
-      fontSize: 15,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    emptySubtext: {
-      color: colors.textDark,
-      fontSize: 13,
-      textAlign: 'center',
-    },
-  });
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  center: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    marginBottom: 12,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  shipmentCode: {
+    fontSize: 12,
+    color: colors.textDim,
+    fontFamily: 'monospace',
+  },
+  badge: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  supplierName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 6,
+  },
+  locationText: {
+    fontSize: 12,
+    color: colors.textDim,
+    marginTop: 3,
+  },
+  cardBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  bottomDetailText: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  empty: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: colors.textDim,
+    fontSize: 14,
+  },
+});

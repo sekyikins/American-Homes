@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../styles/theme';
+import { useMockData } from '../context/MockDataContext';
 
 type Agent = {
   id: string;
@@ -31,6 +32,7 @@ type Transaction = {
 export default function WalletScreen() {
   const { colors } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const mockData = useMockData();
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -39,41 +41,94 @@ export default function WalletScreen() {
 
   const fetchWallets = async () => {
     setLoading(true);
-    const [agentsRes, txRes] = await Promise.all([
-      supabase
-        .from('users')
-        .select(
-          'id, name, email, role, commission_type, commission_rate, wallets ( balance )'
-        )
-        .in('role', ['admin', 'manager', 'agent'])
-        .order('name'),
-      supabase
-        .from('wallet_transactions')
-        .select('id, amount, type, reason, created_at')
-        .order('created_at', { ascending: false })
-        .limit(20),
-    ]);
+    try {
+      const [agentsRes, txRes] = await Promise.all([
+        supabase
+          .from('users')
+          .select(
+            'id, name, email, role, commission_type, commission_rate, wallets ( balance )'
+          )
+          .in('role', ['admin', 'manager', 'agent'])
+          .order('name'),
+        supabase
+          .from('wallet_transactions')
+          .select('id, amount, type, reason, created_at')
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
 
-    if (agentsRes.error)
-      console.warn('Supabase error (agents/wallets):', agentsRes.error.message);
-    if (txRes.error)
-      console.warn('Supabase error (wallet_transactions):', txRes.error.message);
+      if (agentsRes.error)
+        console.warn('Supabase error (agents/wallets):', agentsRes.error.message);
+      if (txRes.error)
+        console.warn('Supabase error (wallet_transactions):', txRes.error.message);
 
-    if (agentsRes.data) {
-      setAgents(
-        agentsRes.data.map(a => ({
+      let fetchedAgents: Agent[] = [];
+      if (agentsRes.data && agentsRes.data.length > 0) {
+        fetchedAgents = agentsRes.data.map(a => ({
           id: a.id,
           name: a.name || 'Unknown',
           email: a.email || '',
           role: a.role,
-          commission_type: a.commission_type,
+          commission_type: a.commission_type || 'flat',
           commission_rate: Number(a.commission_rate) || 0,
           balance: Number((a.wallets as any)?.[0]?.balance) || 0,
-        }))
-      );
+        }));
+      } else {
+        fetchedAgents = [
+          {
+            id: 'u-1',
+            name: 'Kwame Asante',
+            email: 'kwame@americanhomeventures.com',
+            role: 'agent',
+            commission_type: 'percentage',
+            commission_rate: 0.05,
+            balance: mockData.walletBalance,
+          },
+          ...mockData.customers.slice(0, 2).map((c, i) => ({
+            id: c.id,
+            name: c.name,
+            email: `${c.name.toLowerCase().replace(' ', '')}@gmail.com`,
+            role: 'agent',
+            commission_type: 'flat',
+            commission_rate: 25.00,
+            balance: i === 0 ? 320.00 : 0.00,
+          }))
+        ];
+      }
+
+      let fetchedTransactions: Transaction[] = [];
+      if (txRes.data && txRes.data.length > 0) {
+        fetchedTransactions = txRes.data as Transaction[];
+      } else {
+        fetchedTransactions = mockData.walletTransactions.map(tx => ({
+          id: tx.id,
+          amount: tx.amount,
+          type: tx.type,
+          reason: tx.reason,
+          created_at: tx.created_at,
+        }));
+      }
+
+      setAgents(fetchedAgents);
+      setTransactions(fetchedTransactions);
+    } catch (e) {
+      console.warn('Error fetching wallet data:', e);
+      // Fallback
+      setAgents([
+        {
+          id: 'u-1',
+          name: 'Kwame Asante',
+          email: 'kwame@americanhomeventures.com',
+          role: 'agent',
+          commission_type: 'percentage',
+          commission_rate: 0.05,
+          balance: mockData.walletBalance,
+        }
+      ]);
+      setTransactions(mockData.walletTransactions);
+    } finally {
+      setLoading(false);
     }
-    if (txRes.data) setTransactions(txRes.data as Transaction[]);
-    setLoading(false);
   };
 
   useEffect(() => {

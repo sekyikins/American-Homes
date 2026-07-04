@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,40 +13,63 @@ import { ChevronDown, ChevronUp, Check } from 'lucide-react-native';
 
 import { useTheme } from '../styles/theme';
 
-interface ActiveBatch {
-  id: string;
-  product_id: string;
-  product_name: string;
-  remaining_quantity: number;
-  shipment_code: string;
-}
+import { useMockData } from '../context/MockDataContext';
 
-interface ScanScreenProps {
-  activeBatches: ActiveBatch[];
-  scannedUnitSerial: string;
-  setScannedUnitSerial: (text: string) => void;
-  selectedBatchId: string;
-  setSelectedBatchId: (id: string) => void;
-  scannedHistory: string[];
-  handleRegisterSerial: () => void;
-  refreshing?: boolean;
-  onRefresh?: () => void;
-}
-
-export default function ScanScreen({
-  activeBatches,
-  scannedUnitSerial,
-  setScannedUnitSerial,
-  selectedBatchId,
-  setSelectedBatchId,
-  scannedHistory,
-  handleRegisterSerial,
-  refreshing = false,
-  onRefresh,
-}: ScanScreenProps) {
+export default function ScanScreen() {
   const { colors } = useTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  
+  const { products, batches, units, registerSerial, shipments } = useMockData();
+  const [scannedUnitSerial, setScannedUnitSerial] = useState('');
+  const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Map batches of serialized products
+  const activeBatches = batches
+    .filter(b => {
+      const prod = products.find(p => p.id === b.product_id);
+      return prod?.has_serial;
+    })
+    .map(b => {
+      const prod = products.find(p => p.id === b.product_id);
+      const shp = shipments.find(s => s.id === b.shipment_id);
+      return {
+        id: b.id,
+        product_id: b.product_id,
+        product_name: prod ? prod.name : 'Unknown Product',
+        remaining_quantity: b.remaining_quantity,
+        shipment_code: shp ? shp.shipment_code : 'Direct Load',
+      };
+    });
+
+  // Default selected batch if empty
+  useEffect(() => {
+    if (activeBatches.length > 0 && !selectedBatchId) {
+      setSelectedBatchId(activeBatches[0].id);
+    }
+  }, [batches]);
+
+  // Derived scanned history of units in the selected batch
+  const scannedHistory = units
+    .filter(u => u.batch_id === selectedBatchId)
+    .map(u => u.serial_number);
+
+  const handleRegister = () => {
+    if (!scannedUnitSerial.trim() || !selectedBatchId) return;
+    const success = registerSerial(selectedBatchId, scannedUnitSerial.trim());
+    if (success) {
+      setScannedUnitSerial('');
+      alert('Serial registered successfully!');
+    } else {
+      alert('Serial number already exists!');
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 800);
+  };
 
   const selectedBatch = activeBatches.find(b => b.id === selectedBatchId);
   const displayLabel = selectedBatch
@@ -56,6 +79,9 @@ export default function ScanScreen({
       : 'Select product batch…';
 
   const close = () => setDropdownOpen(false);
+
+  // Wire up the button action below
+  const handleRegisterSerial = handleRegister;
 
   return (
     <TouchableWithoutFeedback onPress={close}>
