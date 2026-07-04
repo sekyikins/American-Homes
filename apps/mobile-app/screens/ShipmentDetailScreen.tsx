@@ -26,10 +26,10 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 16,
+      paddingHorizontal: 10,
       marginBottom: 16,
     },
-    sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
+    sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.text, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
     row: { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
     rowText: { fontSize: 14, color: colors.textMuted, marginLeft: 8 },
     rowValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginLeft: 'auto' },
@@ -43,7 +43,7 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
     statusText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
     
     // Timeline Styles
-    timeline: { marginVertical: 12 },
+    timeline: { marginBottom: 12 },
     timelineItem: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
     timelineText: { fontSize: 13, color: colors.textDim, flex: 1 },
     timelineTextActive: { color: colors.primary, fontWeight: '700' },
@@ -98,8 +98,8 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Info card */}
+        <Text style={styles.sectionTitle}>Overview</Text>
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Overview</Text>
           <View style={styles.row}>
             <MapPin size={16} color={colors.textDim} />
             <Text style={styles.rowText}>Supplier Origin</Text>
@@ -125,8 +125,8 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Timeline Status */}
-        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Tracking Progress</Text>
+        
           <View style={styles.timeline}>
             <View style={styles.timelineItem}>
               <View style={[styles.timelineCircle, stepIndex >= 1 && styles.timelineCircleActive]}>
@@ -149,11 +149,10 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
               <Text style={[styles.timelineText, stepIndex >= 3 && styles.timelineTextActive]}>Received & Stocked</Text>
             </View>
           </View>
-        </View>
 
         {/* Shipment Items */}
+        <Text style={styles.sectionTitle}>Products Received ({shipmentBatches.length})</Text>
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Products Received ({shipmentBatches.length})</Text>
           {shipmentBatches.length === 0 ? (
             <Text style={styles.emptyText}>No inventory batches loaded yet.</Text>
           ) : (
@@ -188,11 +187,11 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
           )}
 
           <TouchableOpacity 
-            style={[styles.actionBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            style={[styles.actionBtn, { borderColor: colors.errorBorder, backgroundColor: colors.card }]}
             onPress={() => navigation.navigate('ReportShipment', { shipmentId: shipment.id })}
           >
-            <AlertTriangle size={18} color={colors.textDim} />
-            <Text style={[styles.actionBtnText, { color: colors.textDim }]}>Report Issue</Text>
+            <AlertTriangle size={18} color={colors.errorText} />
+            <Text style={[styles.actionBtnText, { color: colors.errorText }]}>Report Issue</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

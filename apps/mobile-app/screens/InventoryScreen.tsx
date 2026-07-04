@@ -8,7 +8,7 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -26,9 +26,9 @@ interface InventoryItem {
 }
 
 export default function InventoryScreen() {
-  const { colors } = useTheme();
+  const { colors, commonStyles, typography } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
   
   const { products, variants, batches } = useMockData();
   const [skuSearch, setSkuSearch] = useState('');
@@ -143,70 +143,41 @@ export default function InventoryScreen() {
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
+  // ── Layout ──────────────────────────────────────────────────────────────────
+  container: { ...cs.container },
 
   // ── Static search header ───────────────────────────────────────────────────
-  staticHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
+  staticHeader: { ...cs.staticHeader },
   input: {
+    ...cs.input,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    color: colors.text,
-    fontSize: 14,
+    paddingVertical: SPACING.sm + 3,
+    paddingHorizontal: SPACING.xl - 6,
+    fontSize: FONT_SIZE.lg,
     marginBottom: 10,
   },
-  quickNavRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  quickNavBtn: {
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  quickNavText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
+  quickNavRow: { flexDirection: 'row', gap: SPACING.sm },
+  quickNavBtn: { ...cs.chip },
+  quickNavText: { ...cs.chipText },
 
   // ── List ──────────────────────────────────────────────────────────────────
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
     paddingBottom: 36,
   },
-  listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-  },
-  listItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  itemInfo: { flex: 1, paddingRight: 12 },
-  itemName: { fontSize: 15, color: colors.text, fontWeight: '700' },
-  itemSku: { fontSize: 12, color: colors.textMuted, marginTop: 3 },
+  listItem: { ...cs.listItem },
+  listItemBorder: { ...cs.listItemDivider },
+  itemInfo: { flex: 1, paddingRight: SPACING.md },
+  itemName: { fontSize: FONT_SIZE.xl, color: colors.text, fontWeight: '700' },
+  itemSku: { fontSize: FONT_SIZE.md, color: colors.textMuted, marginTop: 3 },
 
   stockBadge: {
     backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 7,
     borderWidth: 1,
     borderColor: colors.border,
@@ -215,11 +186,12 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   stockBadgeText: {
     color: colors.success,
-    fontSize: 14,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
 
-  emptyContainer: { paddingVertical: 60, alignItems: 'center' },
-  emptyText: { color: colors.textDim, fontSize: 14 },
+  // ── Empty State ─────────────────────────────────────────────────────────────
+  emptyContainer: { ...cs.emptyContainer },
+  emptyText: { ...cs.emptyText },
 });

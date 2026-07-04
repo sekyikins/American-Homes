@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Platform, StatusBar as RNStatusBar, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import { Home, Package, ScanLine, FileText, User, ChevronLeft, Truck, Wallet } from 'lucide-react-native';
+import { Home, Package, User, ChevronLeft, Truck, Wallet, Bell } from 'lucide-react-native';
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
-import { ThemeProvider, useTheme } from './styles/theme';
+import { ThemeProvider, useTheme, SPACING, RADIUS, FONT_SIZE } from './styles/theme';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
-import { MockDataProvider } from './context/MockDataContext';
+import { MockDataProvider, useMockData } from './context/MockDataContext';
+import { supabase } from './lib/supabase';
 
 // ── Auth Screens ──────────────────────────────────────────────────────────────
 import WelcomeScreen from './screens/WelcomeScreen';
@@ -64,11 +65,54 @@ const Tab   = createBottomTabNavigator<MainTabParamList>();
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom Header Component
 // ─────────────────────────────────────────────────────────────────────────────
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning,';
+  if (h < 17) return 'Good afternoon,';
+  return 'Good evening,';
+};
+
 function CustomHeader({ route, navigation, options }: any) {
-  const { colors } = useTheme();
+  const { colors, typography, commonStyles } = useTheme();
   const pt = Platform.OS === 'android' ? RNStatusBar.currentHeight || 0 : 0;
   const title = options.title || route.name;
   const canGoBack = navigation.canGoBack();
+  const isTabScreen = ['HomeTab', 'InventoryTab', 'ShipmentsTab', 'WalletTab', 'ProfileTab'].includes(route.name);
+  const showBackButton = canGoBack && !isTabScreen;
+
+  const isHome = route.name === 'HomeTab';
+  const mockData = useMockData();
+  const unreadCount = mockData ? mockData.notifications.filter(n => !n.read).length : 0;
+
+  const [userName, setUserName] = useState('Kwame Asante');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isHome) return;
+    let active = true;
+    const fetchUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.signInAnonymously ? await supabase.auth.getUser() : { data: { user: null } };
+        if (!user || !active) return;
+        const { data: profile } = await supabase
+          .from('users')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+        if (profile?.name && active) {
+          setUserName(profile.name);
+        }
+      } catch (e) {
+        // silently ignore
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchUser();
+    return () => {
+      active = false;
+    };
+  }, [isHome]);
 
   const styles = StyleSheet.create({
     safeArea: {
@@ -77,84 +121,81 @@ function CustomHeader({ route, navigation, options }: any) {
     },
     header: {
       paddingHorizontal: 16,
-      paddingVertical: 6,
+      paddingVertical: isHome ? 8 : 6,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       backgroundColor: colors.background,
-      minHeight: 52,
+      minHeight: isHome ? 60 : 52,
+      gap: 6,
     },
     backButton: {
       alignItems: 'center',
       justifyContent: 'center',
       width: 36,
       height: 36,
-      marginLeft: 10,
+      marginLeft: -5,
     },
-    brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    brandSquare: {
-      width: 24,
-      height: 24,
-      borderRadius: 6,
-      backgroundColor: colors.primary,
+    headerTitle: { ...typography.headerTitle },
+    homeHeaderContent: {
+      flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
     },
-    brandLetter: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
-    headerTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
-    activeTag: {
-      backgroundColor: colors.card,
-      borderColor: colors.border,
+    homeTextCol: {
+      flexDirection: 'column',
+    },
+    greetingSub: { ...typography.greetingSub },
+    greetingName: { ...typography.greetingName },
+    bellBtn: { ...commonStyles.iconButton },
+    bellBadge: {
+      position: 'absolute',
+      top: 7,
+      right: 7,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#fb2c36',
       borderWidth: 1,
-      borderRadius: 6,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      justifyContent: 'center',
+      borderColor: colors.background,
     },
-    activeTagText: {
-      fontSize: 9,
-      color: colors.text,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-    },
-    rightPlaceholder: { width: 36 },
   });
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        {canGoBack ? (
-          <>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-              <ChevronLeft size={26} color={colors.primary} />
+        {showBackButton && (
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <ChevronLeft size={26} color={colors.primary} />
+          </TouchableOpacity>
+        )}
+        
+        {isHome ? (
+          <View style={styles.homeHeaderContent}>
+            <View style={styles.homeTextCol}>
+              <Text style={styles.greetingSub}>{greeting()}</Text>
+              <Text style={styles.greetingName}>{loading ? '...' : userName}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bellBtn}
+              onPress={() => navigation.navigate('Notifications')}
+              activeOpacity={0.75}
+            >
+              <Bell size={17} color={colors.text} />
+              {unreadCount > 0 && <View style={styles.bellBadge} />}
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <View style={styles.rightPlaceholder} />
-          </>
-        ) : route.name === 'HomeTab' ? (
-          <>
-            <View style={styles.brandRow}>
-              <View style={styles.brandSquare}>
-                <Text style={styles.brandLetter}>A</Text>
-              </View>
-              <Text style={styles.headerTitle}>AHV Mobile</Text>
-            </View>
-            <View style={styles.activeTag}>
-              <Text style={styles.activeTagText}>WAREHOUSE HUB</Text>
-            </View>
-          </>
+          </View>
         ) : (
-          <>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <View style={styles.rightPlaceholder} />
-          </>
+          <Text style={styles.headerTitle}>{title}</Text>
         )}
       </View>
     </SafeAreaView>
   );
 }
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bottom tab navigator (5 tabs)
@@ -172,7 +213,8 @@ function MainTabs() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 80 : 70,
+          paddingTop: 5,
+          height: Platform.OS === 'ios' ? 80 : 65,
         },
         tabBarActiveTintColor:   colors.primary,
         tabBarInactiveTintColor: colors.textDim,
@@ -193,11 +235,11 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="HomeTab"      component={HomeScreen}      options={{ title: 'Home', headerShown: false }} />
+      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="InventoryTab" component={InventoryScreen} options={{ title: 'Inventory' }} />
       <Tab.Screen name="ShipmentsTab" component={ShipmentsScreen} options={{ title: 'Shipments' }} />
-      <Tab.Screen name="WalletTab"    component={WalletScreen}    options={{ title: 'Wallet' }} />
-      <Tab.Screen name="ProfileTab"   component={ProfileScreen}   options={{ title: 'Profile' }} />
+      <Tab.Screen name="WalletTab" component={WalletScreen} options={{ title: 'Wallet' }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -223,11 +265,17 @@ function SignInWrapper({ navigation }: any) {
 // Root navigator
 // ─────────────────────────────────────────────────────────────────────────────
 function RootNavigator() {
+  const { colors } = useTheme();
   return (
     <Stack.Navigator
       id="root-navigator"
       initialRouteName="Welcome"
-      screenOptions={{ headerShown: false }}
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
+        contentStyle: { backgroundColor: colors.background },
+      }}
     >
       {/* ── Auth ─────────────────────────────────────────── */}
       <Stack.Screen name="Welcome" component={WelcomeWrapper} />
@@ -260,7 +308,7 @@ function RootNavigator() {
       <Stack.Screen
         name="AllTransactions"
         component={AllTransactionsScreen}
-        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'All Transactions' }}
+        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Transactions History' }}
       />
       <Stack.Screen
         name="CustomerDetail"
@@ -345,7 +393,7 @@ function RootNavigator() {
       <Stack.Screen
         name="NotificationSettings"
         component={NotificationSettingsScreen}
-        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Notification Settings' }}
+        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Notifications' }}
       />
       <Stack.Screen
         name="SyncCenter"
@@ -355,7 +403,7 @@ function RootNavigator() {
       <Stack.Screen
         name="LanguageSelection"
         component={LanguageSelectionScreen}
-        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Select Language' }}
+        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Language' }}
       />
       <Stack.Screen
         name="OrderLookup"
@@ -405,9 +453,21 @@ export default function App() {
 }
 
 function AppShell() {
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
+
+  const navigationTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      background: colors.background,
+      card: colors.card,
+      border: colors.border,
+      text: colors.text,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootNavigator />
     </NavigationContainer>

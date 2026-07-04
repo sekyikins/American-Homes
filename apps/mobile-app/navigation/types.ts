@@ -32,7 +32,7 @@ export type RootStackParamList = {
   ProductSearch: undefined;
   ReportSuccess: { title?: string; message: string };
   Withdraw: undefined;
-  Orders: undefined;
+  Orders: { customerName?: string } | undefined;
   Scan: undefined;
 };
 

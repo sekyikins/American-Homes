@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -31,7 +31,7 @@ type Shipment = {
 };
 
 export default function ShipmentsScreen() {
-  const { colors } = useTheme();
+  const { colors, commonStyles, typography } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const mockData = useMockData();
 
@@ -39,7 +39,7 @@ export default function ShipmentsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
   const fetchShipments = async () => {
     setLoading(true);
@@ -164,28 +164,20 @@ export default function ShipmentsScreen() {
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: colors.background,
+    ...cs.container,
   },
   listContent: {
-    padding: 16,
+    padding: SPACING.lg,
     paddingBottom: 32,
   },
   center: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...cs.center,
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 12,
+    ...cs.cardPadded,
+    marginBottom: SPACING.md,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -193,29 +185,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
   },
   shipmentCode: {
-    fontSize: 12,
-    color: colors.textDim,
-    fontFamily: 'monospace',
+    ...typo.mono,
   },
   badge: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    ...cs.badge,
   },
   badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...cs.badgeText,
     textTransform: 'capitalize',
   },
   supplierName: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '700',
     color: colors.text,
-    marginTop: 6,
+    marginTop: SPACING.sm,
   },
   locationText: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.md,
     color: colors.textDim,
     marginTop: 3,
   },
@@ -229,15 +215,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderTopColor: colors.border,
   },
   bottomDetailText: {
-    fontSize: 11,
+    fontSize: FONT_SIZE.sm,
     color: colors.textMuted,
   },
   empty: {
-    paddingVertical: 60,
-    alignItems: 'center',
+    ...cs.emptyContainer,
   },
   emptyText: {
-    color: colors.textDim,
-    fontSize: 14,
+    ...cs.emptyText,
   },
 });

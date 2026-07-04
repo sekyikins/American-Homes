@@ -11,7 +11,7 @@ import {
 import { ChevronRight } from 'lucide-react-native';
 
 // Global styling theme
-import { useTheme, ThemeMode } from '../styles/theme';
+import { useTheme, ThemeMode, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -31,9 +31,9 @@ interface Props {
 }
 
 export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut }: Props) {
-  const { colors, mode, setMode } = useTheme();
+  const { colors, typography, commonStyles, mode, setMode } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
   const menuItems = [
     { 
@@ -158,7 +158,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         </View>
 
         {/* Settings Options */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>App Preferences</Text>
+        <Text style={[styles.sectionTitle, { marginTop: SPACING.xxl }]}>App Preferences</Text>
         <View style={styles.card}>
           {menuItems.map((item, idx) => (
             <TouchableOpacity
@@ -195,118 +195,87 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
+  // ── Layout ──────────────────────────────────────────────────────────────────
+  container: { ...cs.container },
   staticHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 4,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xs,
   },
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
     paddingBottom: 36,
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
+
+  // ── Section Title ───────────────────────────────────────────────────────────
+  sectionTitle: { ...typo.sectionTitle },
+
+  // ── Operator Card ───────────────────────────────────────────────────────────
   operatorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 16,
+    ...cs.cardPadded,
+    padding: SPACING.xl,
+    gap: SPACING.lg,
   },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  avatarText: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  operatorInfo: {
-    flex: 1,
-  },
+  avatar: { ...cs.avatar },
+  avatarText: { ...cs.avatarText },
+  operatorInfo: { flex: 1 },
   operatorName: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
   },
   operatorRole: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.body,
     color: colors.textDim,
     marginTop: 2,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
     alignSelf: 'flex-start',
     backgroundColor: colors.successBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
     borderColor: colors.successBorder,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    ...cs.statusDot,
     backgroundColor: colors.success,
   },
   statusText: {
     color: colors.successText,
-    fontSize: 11,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '700',
   },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  // ── Theme row ──────────────────────────────────────
-  themeRow: {
-    padding: 16,
-  },
+
+  // ── Card ────────────────────────────────────────────────────────────────────
+  card: { ...cs.card },
+
+  // ── Theme Selector ──────────────────────────────────────────────────────────
+  themeRow: { padding: SPACING.lg },
   themeDivider: {
     height: 1,
     backgroundColor: colors.border,
-    marginHorizontal: 16,
+    marginHorizontal: SPACING.lg,
   },
   themeOptions: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 8,
+    padding: SPACING.md,
+    gap: SPACING.sm,
   },
   themeOptionBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
@@ -317,63 +286,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.primary,
   },
   themeOptionText: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.md,
     fontWeight: '700',
     color: colors.textMuted,
     letterSpacing: 0.2,
   },
-  themeOptionTextActive: {
-    color: '#ffffff',
-  },
-  // ── Menu rows ─────────────────────────────────────
-  menuRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  menuDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  menuLeft: {
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  menuDescription: {
-    fontSize: 12,
-    color: colors.textDim,
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  menuRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  menuValue: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  signOutBtn: {
-    marginTop: 28,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signOutBtnText: {
-    color: colors.error,
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  themeOptionTextActive: { color: '#ffffff' },
+
+  // ── Menu Rows ───────────────────────────────────────────────────────────────
+  menuRow: { ...cs.menuRow },
+  menuDivider: { ...cs.menuDivider },
+  menuLeft: { ...cs.menuLeft },
+  menuRight: { ...cs.menuRight },
+  menuTitle: { ...typo.menuTitle },
+  menuDescription: { ...typo.menuDescription },
+  menuValue: { ...typo.menuValue },
+
+  // ── Sign Out ────────────────────────────────────────────────────────────────
+  signOutBtn: { ...cs.buttonOutline, marginTop: 28 },
+  signOutBtnText: { ...cs.buttonOutlineText },
 });

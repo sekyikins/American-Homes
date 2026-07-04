@@ -24,13 +24,13 @@ export default function ReportsScreen({ navigation }: Props) {
       backgroundColor: colors.card,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
+      borderColor: colors.primary,
+      padding: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
     actionCardText: { fontSize: 12, fontWeight: '700', color: colors.text, marginTop: 8, textAlign: 'center' },
-    tabBar: { flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 12 },
+    tabBar: { flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: 1, borderRadius: 10, borderBottomColor: colors.border, overflow: 'hidden', marginBottom: 12 },
     tabBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },
     tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
     tabText: { fontSize: 13, fontWeight: '600', color: colors.textDim },
@@ -56,7 +56,7 @@ export default function ReportsScreen({ navigation }: Props) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         {/* Quick Actions Grid */}
         <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
-          Log Operations Report
+          Make A Report
         </Text>
         <View style={styles.grid}>
           <TouchableOpacity 

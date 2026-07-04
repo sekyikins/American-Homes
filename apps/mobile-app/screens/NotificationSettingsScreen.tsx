@@ -11,16 +11,18 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
   const [lowStock, setLowStock] = useState(true);
   const [orderUpdates, setOrderUpdates] = useState(true);
   const [shipmentAlerts, setShipmentAlerts] = useState(true);
+  const [walletActivity, setWalletActivity] = useState(true);
   const [promotions, setPromotions] = useState(false);
+  const [tastReminders, setTastReminders] = useState(true);
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
+    content: { paddingHorizontal: 10 },
     settingRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: 16,
+      paddingVertical: 6,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -41,6 +43,14 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Shipment Alerts</Text>
           <Switch value={shipmentAlerts} onValueChange={setShipmentAlerts} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={shipmentAlerts ? colors.primary : colors.textDim} />
+        </View>
+        <View style={styles.settingRow}>
+          <Text style={styles.settingText}>Wallet Activity</Text>
+          <Switch value={walletActivity} onValueChange={setWalletActivity} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={walletActivity ? colors.primary : colors.textDim} />
+        </View>
+        <View style={styles.settingRow}>
+          <Text style={styles.settingText}>Task Reminders</Text>
+          <Switch value={tastReminders} onValueChange={setTastReminders} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={tastReminders ? colors.primary : colors.textDim} />
         </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Promotions & Offers</Text>

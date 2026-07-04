@@ -13,6 +13,10 @@ export default function NotificationsScreen({ navigation }: Props) {
   const { notifications, markNotificationsAsRead } = useMockData();
   const [refreshing, setRefreshing] = useState(false);
 
+  const handleNotificationPress = (notification: any) => {
+    console.log('Notification pressed:', notification);
+  };
+
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     actionHeader: {
@@ -88,7 +92,9 @@ export default function NotificationsScreen({ navigation }: Props) {
           const isFirst = index === 0;
           const isLast = index === notifications.length - 1;
           return (
-            <View
+            <TouchableOpacity
+              onPress={() => handleNotificationPress(item)}
+              activeOpacity={0.8}
               style={[
                 styles.row,
                 isFirst && styles.rowFirst,
@@ -104,7 +110,7 @@ export default function NotificationsScreen({ navigation }: Props) {
                 <Text style={styles.time}>{item.time}</Text>
               </View>
               {!item.read && <View style={styles.unreadDot} />}
-            </View>
+            </TouchableOpacity>
           );
         }}
         contentContainerStyle={styles.listContent}

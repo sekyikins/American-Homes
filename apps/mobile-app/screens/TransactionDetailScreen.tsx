@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { FileText, ArrowUpRight, ArrowDownLeft, Calendar, Info, CornerDownRight } from 'lucide-react-native';
+import { FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
@@ -82,9 +82,9 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
         <View style={styles.amountCard}>
           <View style={[styles.typeIcon, { backgroundColor: iconBg }]}>
             {isCredit ? (
-              <ArrowDownLeft size={24} color={iconColor} />
-            ) : (
               <ArrowUpRight size={24} color={iconColor} />
+            ) : (
+              <ArrowDownRight size={24} color={iconColor} />
             )}
           </View>
           <Text style={[styles.amount, { color: isCredit ? colors.success : colors.error }]}>
@@ -118,16 +118,26 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.rowText}>Reason</Text>
+            <Text style={styles.rowText}>Description</Text>
             <Text style={styles.rowValue}>{transaction.reason}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.rowText}>Method</Text>
+            <Text style={styles.rowValue}>{transaction.method}</Text>
           </View>
 
           {transaction.reference_id && (
             <View style={styles.row}>
-              <Text style={styles.rowText}>Reference Ref</Text>
+              <Text style={styles.rowText}>Reference</Text>
               <Text style={styles.rowValue}>{transaction.reference_id}</Text>
             </View>
           )}
+
+          <View style={styles.row}>
+              <Text style={styles.rowText}>Status</Text>
+              <Text style={styles.rowValue}>{transaction.status}</Text>
+            </View>
         </View>
 
         {/* Order Link Action */}

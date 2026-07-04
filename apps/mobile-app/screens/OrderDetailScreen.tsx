@@ -1,59 +1,109 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useTheme } from '../styles/theme';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { FileText, User, CreditCard, Calendar, ShoppingBag } from 'lucide-react-native';
+import { supabase } from '../lib/supabase';
+import { FileText } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetail'>;
 
 export default function OrderDetailScreen({ route, navigation }: Props) {
-  const { colors, typography } = useTheme();
+  const { colors, typography, commonStyles } = useTheme();
   const { orders, orderItems, products, customers } = useMockData();
   const { orderId } = route.params;
 
-  const order = orders.find((o) => o.id === orderId);
+  const [order, setOrder] = useState<any>(null);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const itemsForOrder = orderItems.filter((oi) => oi.order_id === orderId);
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
-  const customerObj = order ? customers.find((c) => c.id === order.customer_id) : null;
+  useEffect(() => {
+    let active = true;
+    const fetchOrderDetail = async () => {
+      setLoading(true);
+      try {
+        // Try fetching from Supabase first
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .select('id, total_amount, payment_status, created_at, customer_id, customers ( name, phone )')
+          .eq('id', orderId)
+          .single();
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16 },
-    card: {
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-      marginBottom: 16,
-    },
-    sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-    row: { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
-    rowText: { fontSize: 14, color: colors.textMuted, marginLeft: 8 },
-    rowValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginLeft: 'auto' },
-    statusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
-      borderWidth: 1,
-      marginLeft: 'auto',
-    },
-    statusText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-    itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-    itemName: { fontSize: 14, fontWeight: '700', color: colors.text, flex: 1 },
-    itemQty: { fontSize: 13, color: colors.textDim, marginTop: 2 },
-    itemSubtotal: { fontSize: 15, fontWeight: '700', color: colors.text, marginLeft: 12 },
-    totalBlock: { marginTop: 12, paddingTop: 12 },
-    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 },
-    totalLabel: { fontSize: 14, color: colors.textDim },
-    totalValue: { fontSize: 15, fontWeight: '600', color: colors.text },
-    grandTotalLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
-    grandTotalValue: { fontSize: 18, fontWeight: '800', color: colors.primary },
-    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: 24, fontSize: 14 },
-  });
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('order_items')
+          .select('id, quantity, unit_price, products ( name )')
+          .eq('order_id', orderId);
+
+        if (active) {
+          if (orderData) {
+            setOrder({
+              id: orderData.id,
+              total_amount: Number(orderData.total_amount) || 0,
+              payment_status: orderData.payment_status,
+              created_at: orderData.created_at,
+              customer_name: orderData.customers?.name || 'Walk-in Customer',
+              customer_phone: orderData.customers?.phone || '',
+              customer_id: orderData.customer_id,
+            });
+            if (itemsData) {
+              setItems(itemsData.map(item => ({
+                id: item.id,
+                name: item.products?.name || 'Unknown Product',
+                quantity: item.quantity,
+                unit_price: Number(item.unit_price) || 0,
+              })));
+            }
+          } else {
+            // Fallback to Mock Data
+            const mockOrder = orders.find(o => o.id === orderId);
+            if (mockOrder) {
+              const customer = mockOrder.customer_id ? customers.find(c => c.id === mockOrder.customer_id) : null;
+              setOrder({
+                id: mockOrder.id,
+                total_amount: mockOrder.total_amount,
+                payment_status: mockOrder.payment_status,
+                created_at: mockOrder.created_at,
+                customer_name: customer?.name || 'Walk-in Customer',
+                customer_phone: customer?.phone || '',
+                customer_id: mockOrder.customer_id,
+              });
+
+              const mockItems = orderItems.filter(oi => oi.order_id === orderId);
+              setItems(mockItems.map(item => {
+                const prod = products.find(p => p.id === item.product_id);
+                return {
+                  id: item.id,
+                  name: prod?.name || 'Unknown Product',
+                  quantity: item.quantity,
+                  unit_price: item.unit_price,
+                };
+              }));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error fetching order details:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchOrderDetail();
+    return () => {
+      active = false;
+    };
+  }, [orderId, orders, orderItems, products, customers]);
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   if (!order) {
     return (
@@ -63,99 +113,219 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  const getStatusBadgeColors = (status: string) => {
+  // Format order code like ORD-2024-1204
+  const getOrderCode = (id: string, dateStr: string) => {
+    if (id.startsWith('ORD-')) return id;
+    const year = new Date(dateStr).getFullYear() || 2026;
+    const parts = id.split('-');
+    const lastPart = parts[parts.length - 1];
+    const num = parseInt(lastPart, 10);
+    if (!isNaN(num) && num < 100) {
+      return `ORD-${year}-${1200 + num}`;
+    }
+    return `ORD-${year}-${id.slice(0, 4).toUpperCase()}`;
+  };
+
+  const getStatusBadgeStyle = (status: string) => {
     switch (status) {
       case 'paid':
-        return { bg: colors.successBg, border: colors.successBorder, text: colors.successText };
+        return { bg: colors.successBg, border: colors.successBorder, text: colors.successText, label: 'Paid' };
       case 'partial':
-        return { bg: colors.pendingBg, border: colors.pendingBorder, text: colors.pendingText };
+        return { bg: colors.pendingBg, border: colors.pendingBorder, text: colors.pendingText, label: 'Partial' };
+      case 'credit':
+        return { bg: colors.errorBg, border: colors.errorBorder, text: colors.errorText, label: 'Credit' };
       default:
-        return { bg: colors.errorBg, border: colors.errorBorder, text: colors.errorText };
+        return { bg: colors.border, border: colors.borderLight, text: colors.textDim, label: 'Pending' };
     }
   };
 
-  const badge = getStatusBadgeColors(order.payment_status);
+  const badge = getStatusBadgeStyle(order.payment_status);
+
+  // Paid and Balance calculation logic
+  let paidAmount = 0;
+  if (order.payment_status === 'paid') {
+    paidAmount = order.total_amount;
+  } else if (order.payment_status === 'partial') {
+    paidAmount = order.total_amount * 0.5; // default 50% paid
+  } else if (order.payment_status === 'credit') {
+    paidAmount = 0;
+  }
+
+  const balanceAmount = order.total_amount - paidAmount;
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Info Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Summary Info</Text>
-          <View style={styles.row}>
-            <Calendar size={16} color={colors.textDim} />
-            <Text style={styles.rowText}>Order Date</Text>
-            <Text style={styles.rowValue}>
-              {new Date(order.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Order ID & Status Badge */}
+        <View style={styles.orderHeaderRow}>
+          <Text style={styles.orderTitle}>{getOrderCode(order.id, order.created_at)}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+            <Text style={[styles.statusText, { color: badge.text }]}>{badge.label}</Text>
+          </View>
+        </View>
+
+        {/* Details Card */}
+        <View style={styles.detailsCard}>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Customer</Text>
+            {order.customer_id ? (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('CustomerDetail', { customerId: order.customer_id })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tableValueLink}>{order.customer_name}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.tableValue}>{order.customer_name}</Text>
+            )}
+          </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Date</Text>
+            <Text style={styles.tableValue}>
+              {order.created_at.split('T')[0]}
             </Text>
           </View>
-          <View style={styles.row}>
-            <CreditCard size={16} color={colors.textDim} />
-            <Text style={styles.rowText}>Payment Status</Text>
-            <View style={[styles.statusBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-              <Text style={[styles.statusText, { color: badge.text }]}>{order.payment_status}</Text>
-            </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Total</Text>
+            <Text style={styles.tableValue}>${order.total_amount.toFixed(2)}</Text>
+          </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Paid</Text>
+            <Text style={styles.tableValue}>${paidAmount.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.tableLabel}>Balance</Text>
+            <Text style={styles.tableValue}>${balanceAmount.toFixed(2)}</Text>
           </View>
         </View>
 
-        {/* Customer Card */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Customer Details</Text>
-          {customerObj ? (
-            <TouchableOpacity onPress={() => navigation.navigate('CustomerDetail', { customerId: customerObj.id })}>
-              <View style={styles.row}>
-                <User size={16} color={colors.textDim} />
-                <Text style={[styles.rowText, { color: colors.primary, fontWeight: '700' }]}>{customerObj.name}</Text>
-                <Text style={[styles.rowValue, { color: colors.primary }]}>View Customer</Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={[styles.rowText, { marginLeft: 24 }]}>{customerObj.phone}</Text>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.row}>
-              <User size={16} color={colors.textDim} />
-              <Text style={styles.rowText}>Anonymous Walk-in Customer</Text>
+        {/* Items List */}
+        <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+        <View style={styles.itemsCard}>
+          {items.map((item, index) => (
+            <View
+              key={item.id}
+              style={[
+                styles.itemRow,
+                index === items.length - 1 && { borderBottomWidth: 0 }
+              ]}
+            >
+              <Text style={styles.itemName} numberOfLines={1}>
+                {item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+              </Text>
+              <Text style={styles.itemPrice}>
+                ${(item.quantity * item.unit_price).toFixed(2)}
+              </Text>
             </View>
-          )}
+          ))}
         </View>
 
-        {/* Order Items */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Order Items</Text>
-          {itemsForOrder.map((item) => {
-            const prod = products.find((p) => p.id === item.product_id);
-            return (
-              <View key={item.id} style={styles.itemRow}>
-                <ShoppingBag size={18} color={colors.textDim} style={{ marginRight: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{prod ? prod.name : 'Unknown Product'}</Text>
-                  <Text style={styles.itemQty}>
-                    {item.quantity} x ${item.unit_price.toFixed(2)}
-                  </Text>
-                </View>
-                <Text style={styles.itemSubtotal}>${(item.quantity * item.unit_price).toFixed(2)}</Text>
-              </View>
-            );
-          })}
-
-          {/* Totals */}
-          <View style={styles.totalBlock}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>${order.total_amount.toFixed(2)}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Tax (0%)</Text>
-              <Text style={styles.totalValue}>$0.00</Text>
-            </View>
-            <View style={[styles.totalRow, { marginTop: 8 }]}>
-              <Text style={styles.grandTotalLabel}>Total Amount</Text>
-              <Text style={styles.grandTotalValue}>${order.total_amount.toFixed(2)}</Text>
-            </View>
-          </View>
-        </View>
+        {/* Action Button */}
+        <TouchableOpacity style={styles.receiptBtn} activeOpacity={0.8}>
+          <FileText size={18} color="#ffffff" style={{ marginRight: 8 }} />
+          <Text style={styles.receiptBtnText}>View Receipt</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
+
+const createStyles = (colors: any, cs: any, typo: any) =>
+  StyleSheet.create({
+    container: { ...cs.container },
+    center: { ...cs.center },
+    scrollContent: {
+      paddingHorizontal: SPACING.lg,
+      paddingTop: SPACING.lg,
+      paddingBottom: 40,
+    },
+    orderHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: SPACING.lg,
+    },
+    orderTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    statusBadge: {
+      ...cs.badge,
+      borderRadius: RADIUS.sm,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 3,
+    },
+    statusText: {
+      ...cs.badgeText,
+      fontSize: FONT_SIZE.xs,
+      textTransform: 'uppercase',
+    },
+    detailsCard: {
+      ...cs.card,
+      marginBottom: SPACING.lg,
+    },
+    tableRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tableLabel: {
+      fontSize: FONT_SIZE.md,
+      color: colors.textDim,
+    },
+    tableValue: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    tableValueLink: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    sectionTitle: {
+      ...typo.sectionTitleCompact,
+      fontSize: FONT_SIZE.lg,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: SPACING.sm,
+    },
+    itemsCard: {
+      ...cs.card,
+      marginBottom: SPACING.xl,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    itemName: {
+      fontSize: FONT_SIZE.md,
+      color: colors.text,
+      maxWidth: '75%',
+    },
+    itemPrice: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    receiptBtn: {
+      ...cs.button,
+      flexDirection: 'row',
+      backgroundColor: colors.primary,
+    },
+    receiptBtnText: {
+      ...cs.buttonText,
+    },
+    emptyText: {
+      ...typo.emptyBody,
+      paddingVertical: SPACING.lg,
+    },
+  });

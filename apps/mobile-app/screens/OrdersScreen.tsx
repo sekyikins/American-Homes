@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../styles/theme';
-import { useNavigation } from '@react-navigation/native';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
@@ -29,9 +30,6 @@ type Order = {
 
 type FilterKey = 'all' | PaymentStatus;
 
-
-
-
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'paid', label: 'Paid' },
@@ -41,14 +39,22 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export default function OrdersScreen() {
-  const { colors } = useTheme();
+  const { colors, commonStyles, typography } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const route = useRoute<RouteProp<RootStackParamList, 'Orders'>>();
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [searchQuery, setSearchQuery] = useState(route.params?.customerName || '');
+
+  useEffect(() => {
+    if (route.params?.customerName) {
+      setSearchQuery(route.params.customerName);
+    }
+  }, [route.params?.customerName]);
 
   const STATUS_CONFIG: Record<
     PaymentStatus,
@@ -117,8 +123,13 @@ export default function OrdersScreen() {
     setRefreshing(false);
   };
 
-  const filtered =
-    filter === 'all' ? orders : orders.filter(o => o.payment_status === filter);
+  const filtered = orders.filter(o => {
+    const matchesFilter = filter === 'all' || o.payment_status === filter;
+    const matchesSearch = searchQuery === '' ||
+      o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      o.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   const totalRevenue = filtered.reduce((s, o) => s + o.total_amount, 0);
 
@@ -194,6 +205,19 @@ export default function OrdersScreen() {
           </TouchableOpacity>
         ))}
       </View>
+      {/* Search bar */}
+      <View style={styles.searchBarContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Order ID or customer name…"
+          placeholderTextColor={colors.textDim}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
 
       {/* Summary */}
       <View style={styles.summaryBar}>
@@ -243,57 +267,44 @@ export default function OrdersScreen() {
   );
 }
 
-const createStyles = (colors: any) =>
+const createStyles = (colors: any, cs: any, typo: any) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+    container: { ...cs.container },
 
-    filterBar: {
-      flexDirection: 'row',
-      paddingHorizontal: 14,
-      paddingTop: 14,
-      paddingBottom: 8,
-      gap: 6,
+    searchBarContainer: {
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.xs,
+      backgroundColor: colors.background,
     },
-    filterTab: {
-      flex: 1,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'center',
+    searchInput: {
+      ...cs.input,
+      height: 40,
+      paddingVertical: 0,
+      fontSize: FONT_SIZE.md,
     },
-    filterTabActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    filterText: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
-    filterTextActive: { color: '#ffffff' },
+
+    filterBar: { ...cs.filterBar },
+    filterTab: { ...cs.filterTab },
+    filterTabActive: { ...cs.filterTabActive },
+    filterText: { ...cs.filterText },
+    filterTextActive: { ...cs.filterTextActive },
 
     summaryBar: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingBottom: 8,
+      paddingHorizontal: SPACING.lg,
+      paddingBottom: SPACING.sm,
     },
-    summaryCount: { fontSize: 12, color: colors.textDim },
-    summaryRevenue: { fontSize: 13, fontWeight: '700', color: colors.text },
+    summaryCount: { fontSize: FONT_SIZE.md, color: colors.textDim },
+    summaryRevenue: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.text },
 
-    center: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    center: { ...cs.center },
     list: { paddingHorizontal: 14, paddingBottom: 24, gap: 10 },
 
     orderCard: {
       flexDirection: 'row',
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: 'hidden',
+      ...cs.card,
     },
     orderStatusBar: { width: 3 },
     orderBody: {
@@ -301,56 +312,49 @@ const createStyles = (colors: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: 14,
+      padding: SPACING.lg - 2,
     },
     orderLeft: { flex: 1 },
     orderId: {
-      fontSize: 13,
+      fontSize: FONT_SIZE.body,
       fontWeight: '700',
       color: colors.text,
       fontVariant: ['tabular-nums'],
       letterSpacing: 0.5,
     },
     orderCustomer: {
-      fontSize: 14,
+      fontSize: FONT_SIZE.lg,
       color: colors.textMuted,
       marginTop: 3,
     },
-    orderDate: { fontSize: 11, color: colors.textDim, marginTop: 2 },
+    orderDate: { ...typo.meta, marginTop: 2 },
 
-    orderRight: { alignItems: 'flex-end', gap: 6 },
+    orderRight: { alignItems: 'flex-end', gap: SPACING.sm },
     orderTotal: {
-      fontSize: 17,
+      fontSize: FONT_SIZE.xxl,
       fontWeight: '800',
       color: colors.text,
       fontVariant: ['tabular-nums'],
     },
     statusBadge: {
+      ...cs.badge,
       borderRadius: 7,
-      borderWidth: 1,
       paddingHorizontal: 9,
       paddingVertical: 4,
     },
-    statusText: { fontSize: 11, fontWeight: '700' },
+    statusText: { ...cs.badgeText },
 
     emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+      ...cs.emptyContainer,
       paddingTop: 80,
-      paddingHorizontal: 32,
+      paddingHorizontal: SPACING.xxxl,
     },
     emptyTitle: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: colors.textMuted,
-      textAlign: 'center',
+      ...typo.emptyTitle,
     },
     emptySubtitle: {
-      fontSize: 13,
-      color: colors.textDim,
-      textAlign: 'center',
-      marginTop: 8,
+      ...typo.emptyBody,
+      marginTop: SPACING.sm,
       lineHeight: 18,
     },
   });

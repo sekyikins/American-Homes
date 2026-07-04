@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { ChevronLeft, DollarSign, Wallet, ArrowUpRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, Wallet, ArrowUpRight } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Withdraw'>;
 
-const networks = ['MTN Mobile Money', 'Telecel Cash', 'Telecel Cash (Momo)', 'Bank Transfer'];
+const networks = ['MTN Mobile Money', 'Telecel Cash', 'AirtelTigo Money', 'Bank Transfer'];
 
 export default function WithdrawScreen({ navigation }: Props) {
   const { colors, typography, commonStyles } = useTheme();
@@ -122,7 +122,7 @@ export default function WithdrawScreen({ navigation }: Props) {
           <Text style={styles.label}>Select Payout Provider</Text>
           <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowNetworkPicker(true)}>
             <Text style={styles.pickerBtnText}>{network}</Text>
-            <ChevronLeft size={20} color={colors.textDim} style={{ transform: [{ rotate: '-90deg' }] }} />
+            <ChevronDown size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
 

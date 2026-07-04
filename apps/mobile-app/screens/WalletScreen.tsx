@@ -6,9 +6,10 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 
 type Agent = {
@@ -30,8 +31,8 @@ type Transaction = {
 };
 
 export default function WalletScreen() {
-  const { colors } = useTheme();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const { colors, commonStyles, typography } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
   const mockData = useMockData();
 
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -177,13 +178,20 @@ export default function WalletScreen() {
       {/* Total balance banner stays static at top */}
       <View style={styles.staticHeader}>
         <View style={styles.banner}>
-          <Text style={styles.bannerLabel}>TOTAL COMMISSION POOL</Text>
+          <Text style={styles.bannerLabel}>Available Balance</Text>
           <Text style={styles.bannerValue}>
             ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </Text>
           <Text style={styles.bannerSub}>
             {agents.length} registered wallet{agents.length !== 1 ? 's' : ''}
           </Text>
+        <TouchableOpacity
+          style={styles.walletBtn}
+          onPress={() => navigation.navigate('Withdraw')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.walletBtnText}>Withdraw Funds</Text>
+        </TouchableOpacity>
         </View>
       </View>
 
@@ -206,8 +214,8 @@ export default function WalletScreen() {
         {agents.map(a => (
           <View key={a.id} style={styles.agentCard}>
             <View style={styles.agentLeft}>
-              <View style={[styles.avatar, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={[styles.avatarText, { color: colors.primary }]}>
+              <View style={[styles.avatarSmall, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={[styles.avatarTextSmall, { color: colors.primary }]}>
                   {initials(a.name)}
                 </Text>
               </View>
@@ -229,7 +237,7 @@ export default function WalletScreen() {
         ))}
 
         {agents.length === 0 && (
-          <View style={styles.empty}>
+          <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No agents registered yet</Text>
           </View>
         )}
@@ -237,9 +245,17 @@ export default function WalletScreen() {
         {/* Recent transactions */}
         {transactions.length > 0 && (
           <>
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
-              Recent Transactions
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: SPACING.lg }}>
+              <Text style={[styles.sectionTitle]}>
+                Recent Transactions
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AllTransactions')}
+              >
+                <Text style={[styles.sectionTitle, { color: colors.primary }]}>VIEW ALL</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.txCard}>
               {transactions.map((tx, idx) => (
                 <View
@@ -286,27 +302,23 @@ export default function WalletScreen() {
   );
 }
 
-const createStyles = (colors: any) =>
+const createStyles = (colors: any, cs: any, typo: any) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    staticHeader: { padding: 16, paddingBottom: 4 },
+    // ── Layout ────────────────────────────────────────────────────────────────
+    container: { ...cs.container },
+    staticHeader: { padding: SPACING.lg, paddingBottom: SPACING.xs },
     scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 40 },
-    center: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingTop: 80,
-    },
+    scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: 10, paddingBottom: 40 },
+    center: { ...cs.center, paddingTop: 80 },
 
+    // ── Banner ────────────────────────────────────────────────────────────────
     banner: {
       backgroundColor: colors.primary,
-      borderRadius: 14,
+      borderRadius: RADIUS.xl,
       padding: 22,
-      alignItems: 'center',
     },
     bannerLabel: {
-      fontSize: 10,
+      fontSize: FONT_SIZE.xs,
       color: '#ffffff99',
       letterSpacing: 1.2,
       textTransform: 'uppercase',
@@ -316,49 +328,45 @@ const createStyles = (colors: any) =>
       fontSize: 38,
       fontWeight: '800',
       color: '#ffffff',
-      marginTop: 6,
       fontVariant: ['tabular-nums'],
     },
-    bannerSub: { fontSize: 12, color: '#ffffffaa', marginTop: 6 },
-
-    sectionTitle: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: colors.textMuted,
-      marginBottom: 10,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
+    bannerSub: { fontSize: FONT_SIZE.md, color: '#ffffffaa' },
+    walletBtn: {
+      alignItems: 'center',
+      backgroundColor: '#ffffff',
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+      borderRadius: RADIUS.lg,
+      marginTop: SPACING.md,
+      width: '100%',
     },
+  walletBtnText: { fontSize: FONT_SIZE.lg, fontWeight: '800', color: colors.primary },
 
+    // ── Section Title ─────────────────────────────────────────────────────────
+    sectionTitle: { ...typo.sectionTitleUppercase },
+
+    // ── Agent Cards ───────────────────────────────────────────────────────────
     agentCard: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 14,
+      ...cs.cardPadded,
+      padding: SPACING.xl - 6,
       marginBottom: 10,
     },
     agentLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: SPACING.md,
       flex: 1,
     },
-    avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarText: { fontSize: 15, fontWeight: '700' },
+    avatarSmall: { ...cs.avatarSmall },
+    avatarTextSmall: { ...cs.avatarTextSmall },
     agentInfo: { flex: 1 },
-    agentName: { fontSize: 14, fontWeight: '700', color: colors.text },
-    agentMeta: { fontSize: 11, color: colors.textDim, marginTop: 2 },
+    agentName: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.text },
+    agentMeta: { ...typo.meta, marginTop: 2 },
 
+    // ── Balance ───────────────────────────────────────────────────────────────
     balanceBox: { alignItems: 'flex-end' },
     balanceVal: {
       fontSize: 18,
@@ -366,26 +374,22 @@ const createStyles = (colors: any) =>
       color: colors.text,
       fontVariant: ['tabular-nums'],
     },
-    balanceLbl: { fontSize: 10, color: colors.textDim, marginTop: 2 },
+    balanceLbl: { fontSize: FONT_SIZE.xs, color: colors.textDim, marginTop: 2 },
 
-    empty: { padding: 40, alignItems: 'center' },
-    emptyText: { color: colors.textDim, fontSize: 14 },
+    // ── Empty State ───────────────────────────────────────────────────────────
+    emptyContainer: { padding: 40, alignItems: 'center' },
+    emptyText: { ...cs.emptyText },
 
-    txCard: {
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: 'hidden',
-    },
-    txRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-    txDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
-    txDot: { width: 8, height: 8, borderRadius: 4 },
+    // ── Transactions ──────────────────────────────────────────────────────────
+    txCard: { ...cs.card },
+    txRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.xl - 6, gap: SPACING.md },
+    txDivider: { ...cs.listItemDivider },
+    txDot: { ...cs.statusDot },
     txInfo: { flex: 1 },
-    txReason: { fontSize: 13, color: colors.text, fontWeight: '500' },
-    txDate: { fontSize: 11, color: colors.textDim, marginTop: 2 },
+    txReason: { fontSize: FONT_SIZE.body, color: colors.text, fontWeight: '500' },
+    txDate: { ...typo.meta, marginTop: 2 },
     txAmount: {
-      fontSize: 15,
+      fontSize: FONT_SIZE.xl,
       fontWeight: '700',
       fontVariant: ['tabular-nums'],
     },

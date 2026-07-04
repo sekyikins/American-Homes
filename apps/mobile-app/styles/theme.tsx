@@ -10,6 +10,52 @@ try {
   // Package not yet installed — theme preference will reset on each app launch.
 }
 
+// ─── Design Tokens ───────────────────────────────────────────────────────────
+// Use these constants instead of magic numbers throughout the app.
+// When adding new screens/components, always reference these tokens.
+
+/** Standardized spacing scale (in dp). */
+export const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+} as const;
+
+/** Standardized border-radius scale (in dp). */
+export const RADIUS = {
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 14,
+  pill: 999,
+} as const;
+
+/** Standardized font-size scale (in sp). */
+export const FONT_SIZE = {
+  /** 10 — tiny labels, banner sub-labels */
+  xs: 10,
+  /** 11 — captions, meta info, badge text, tab labels */
+  sm: 11,
+  /** 12 — secondary text, descriptions, field labels */
+  md: 12,
+  /** 13 — body text, list item titles */
+  body: 13,
+  /** 14 — medium text, agent names */
+  lg: 14,
+  /** 15 — primary body, input text, menu titles */
+  xl: 15,
+  /** 17 — large numbers, greeting names */
+  xxl: 17,
+  /** 20 — header titles */
+  title: 20,
+  /** 24 — hero / page titles */
+  hero: 24,
+} as const;
+
 // ─── Palette ─────────────────────────────────────────────────────────────────
 
 export const LIGHT_COLORS = {
@@ -128,78 +174,483 @@ export function useTheme(): ThemeContextValue {
   return ctx;
 }
 
-// ─── Style Builders ───────────────────────────────────────────────────────────
+// ─── Typography ───────────────────────────────────────────────────────────────
+// All text styles live here. Screens should reference typography.* for text
+// and only override layout props (margins, alignment) locally.
 
 function buildTypography(colors: ThemeColors) {
   return {
+    // ── Headings ──────────────────────────────────────────────────────────
+    /** Large page/hero titles — 24sp bold */
     title: {
-      fontSize: 24,
+      fontSize: FONT_SIZE.hero,
       fontWeight: '700' as const,
       color: colors.text,
       letterSpacing: -0.5,
     },
-    subtitle: {
-      fontSize: 13,
-      color: colors.textDim,
-      marginTop: 6,
-      marginBottom: 24,
-    },
-    sectionTitle: {
-      fontSize: 15,
+    /** Header bar titles — 20sp bold */
+    headerTitle: {
+      fontSize: FONT_SIZE.title,
       fontWeight: '700' as const,
-      color: colors.textMuted,
-      marginBottom: 12,
-      letterSpacing: 0.5,
-    },
-    body: {
-      fontSize: 15,
       color: colors.text,
     },
-    caption: {
-      fontSize: 12,
+    /** Section headings — 15sp bold, muted color, spaced */
+    sectionTitle: {
+      fontSize: FONT_SIZE.xl,
+      fontWeight: '700' as const,
+      color: colors.textMuted,
+      marginBottom: SPACING.md,
+      letterSpacing: 0.5,
+    },
+    /** Compact section headings — 13sp semibold (HomeScreen style) */
+    sectionTitleCompact: {
+      fontSize: FONT_SIZE.body,
+      fontWeight: '600' as const,
+      color: colors.text,
+      lineHeight: 20,
+      marginBottom: SPACING.sm,
+    },
+    /** Uppercase section headings — 11sp bold, uppercase (WalletScreen style) */
+    sectionTitleUppercase: {
+      fontSize: FONT_SIZE.sm,
+      fontWeight: '700' as const,
+      color: colors.textMuted,
+      marginBottom: 10,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase' as const,
+    },
+
+    // ── Body ─────────────────────────────────────────────────────────────
+    /** Page subtitles — 13sp, dim, spaced below */
+    subtitle: {
+      fontSize: FONT_SIZE.body,
       color: colors.textDim,
+      marginTop: 6,
+      marginBottom: SPACING.xxl,
+    },
+    /** Primary body text — 15sp */
+    body: {
+      fontSize: FONT_SIZE.xl,
+      color: colors.text,
+    },
+    /** Secondary body — 14sp, slightly smaller */
+    bodySmall: {
+      fontSize: FONT_SIZE.lg,
+      color: colors.text,
+    },
+
+    // ── Captions & Labels ────────────────────────────────────────────────
+    /** Standard caption — 12sp, dim */
+    caption: {
+      fontSize: FONT_SIZE.md,
+      color: colors.textDim,
+    },
+    /** Tiny meta text — 11sp, dim */
+    meta: {
+      fontSize: FONT_SIZE.sm,
+      color: colors.textDim,
+    },
+    /** Uppercase field labels — 12sp semibold (form fields) */
+    fieldLabel: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '600' as const,
+      color: colors.textDim,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.6,
+      marginBottom: SPACING.sm,
+    },
+    /** Form input labels — 15sp semibold */
+    inputLabel: {
+      fontSize: FONT_SIZE.xl,
+      fontWeight: '600' as const,
+      color: colors.text,
+      marginBottom: SPACING.sm,
+    },
+
+    // ── Menu / List Text ─────────────────────────────────────────────────
+    /** Menu row primary text — 15sp bold */
+    menuTitle: {
+      fontSize: FONT_SIZE.xl,
+      fontWeight: '700' as const,
+      color: colors.text,
+    },
+    /** Menu row description — 12sp, dim, with line-height */
+    menuDescription: {
+      fontSize: FONT_SIZE.md,
+      color: colors.textDim,
+      marginTop: SPACING.xs,
+      lineHeight: 16,
+    },
+    /** Menu row value — 13sp semibold, muted */
+    menuValue: {
+      fontSize: FONT_SIZE.body,
+      color: colors.textMuted,
+      fontWeight: '600' as const,
+    },
+
+    // ── Special ──────────────────────────────────────────────────────────
+    /** "View All" link — 12sp, primary color */
+    viewAllLink: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '500' as const,
+      color: colors.primary,
+      marginBottom: SPACING.sm,
+    },
+    /** Monospaced code/ID text — 12sp, dim */
+    mono: {
+      fontSize: FONT_SIZE.md,
+      color: colors.textDim,
+      fontFamily: 'monospace' as const,
+    },
+    /** Greeting subtitle — 11sp, dim */
+    greetingSub: {
+      fontSize: FONT_SIZE.sm,
+      color: colors.textDim,
+      lineHeight: 16,
+    },
+    /** Greeting name — 17sp bold */
+    greetingName: {
+      fontSize: FONT_SIZE.xxl,
+      fontWeight: '700' as const,
+      color: colors.text,
+      lineHeight: 24,
+    },
+    /** Empty state title — 16sp bold, muted */
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700' as const,
+      color: colors.textMuted,
+      textAlign: 'center' as const,
+    },
+    /** Empty state body — 13sp, dim */
+    emptyBody: {
+      fontSize: FONT_SIZE.body,
+      color: colors.textDim,
+      textAlign: 'center' as const,
     },
   };
 }
 
+// ─── Common Styles ────────────────────────────────────────────────────────────
+// Reusable component-level styles. Screens should spread these and only
+// override layout-specific props (margins, flex, positioning) locally.
+
 function buildCommonStyles(colors: ThemeColors) {
   return {
-    scroll: {
-      flex: 1,
+    // ── Layout ────────────────────────────────────────────────────────────
+    /** Full-screen container with theme background */
+    container: {
+      flex: 1 as const,
       backgroundColor: colors.background,
     },
+    /** Standard ScrollView wrapper */
+    scroll: {
+      flex: 1 as const,
+      backgroundColor: colors.background,
+    },
+    /** Standard scroll content padding */
     content: {
-      padding: 20,
+      padding: SPACING.xl,
       paddingBottom: 36,
     },
+    /** Scroll content with horizontal + top padding (list screens) */
+    scrollContent: {
+      paddingHorizontal: SPACING.lg,
+      paddingTop: SPACING.md,
+      paddingBottom: 36,
+    },
+    /** Static header area pinned above scroll (search bars, banners) */
+    staticHeader: {
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.md,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    /** Centered loading / empty layout */
+    center: {
+      flex: 1 as const,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      backgroundColor: colors.background,
+    },
+
+    // ── Cards ─────────────────────────────────────────────────────────────
+    /** Standard bordered card (no internal padding — add padding per use) */
     card: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: 'hidden' as const,
     },
+    /** Card with standard internal padding */
+    cardPadded: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.lg,
+      overflow: 'hidden' as const,
+    },
+
+    // ── Inputs ────────────────────────────────────────────────────────────
+    /** Standard text input field */
     input: {
       backgroundColor: colors.background,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
+      borderRadius: RADIUS.md,
+      paddingVertical: SPACING.md,
+      paddingHorizontal: SPACING.lg,
       color: colors.text,
-      fontSize: 15,
+      fontSize: FONT_SIZE.xl,
     },
+
+    // ── Buttons ───────────────────────────────────────────────────────────
+    /** Primary filled button */
     button: {
       backgroundColor: colors.primary,
-      borderRadius: 8,
+      borderRadius: RADIUS.md,
       paddingVertical: 14,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
+    /** Primary button label */
     buttonText: {
       color: '#ffffff',
-      fontSize: 15,
+      fontSize: FONT_SIZE.xl,
       fontWeight: '700' as const,
+    },
+    /** Disabled button state */
+    buttonDisabled: {
+      backgroundColor: colors.border,
+    },
+    /** Outlined button (sign-out, secondary actions) */
+    buttonOutline: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.error,
+      borderRadius: RADIUS.md,
+      paddingVertical: 14,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    /** Outlined button label */
+    buttonOutlineText: {
+      color: colors.error,
+      fontSize: FONT_SIZE.xl,
+      fontWeight: '700' as const,
+    },
+
+    // ── Badges ────────────────────────────────────────────────────────────
+    /** Status badge container (pass backgroundColor + borderColor inline) */
+    badge: {
+      borderWidth: 1,
+      borderRadius: RADIUS.sm,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 3,
+    },
+    /** Status badge text (pass color inline) */
+    badgeText: {
+      fontSize: FONT_SIZE.sm,
+      fontWeight: '600' as const,
+    },
+
+    // ── List Items ────────────────────────────────────────────────────────
+    /** Standard list row (horizontal, spaced) */
+    listItem: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      paddingVertical: 15,
+    },
+    /** Bottom border for list rows (apply conditionally) */
+    listItemDivider: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+
+    // ── Menu Rows (Settings) ──────────────────────────────────────────────
+    /** Settings-style menu row */
+    menuRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      padding: SPACING.lg,
+      gap: SPACING.md,
+    },
+    /** Divider between menu rows */
+    menuDivider: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    /** Left side of menu row (title + description) */
+    menuLeft: {
+      flex: 1 as const,
+    },
+    /** Right side of menu row (value + chevron) */
+    menuRight: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: SPACING.sm,
+    },
+
+    // ── Section Headers ───────────────────────────────────────────────────
+    /** Row with section title and action link (e.g. "View All") */
+    sectionHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: SPACING.sm,
+    },
+
+    // ── Filter Tabs ───────────────────────────────────────────────────────
+    /** Filter tab bar container */
+    filterBar: {
+      flexDirection: 'row' as const,
+      paddingHorizontal: 14,
+      paddingTop: 14,
+      paddingBottom: SPACING.sm,
+      gap: SPACING.sm,
+    },
+    /** Individual filter tab (inactive) */
+    filterTab: {
+      flex: 1 as const,
+      paddingVertical: SPACING.sm,
+      borderRadius: RADIUS.md,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center' as const,
+    },
+    /** Active filter tab */
+    filterTabActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    /** Filter tab label (inactive) */
+    filterText: {
+      fontSize: FONT_SIZE.sm,
+      fontWeight: '600' as const,
+      color: colors.textMuted,
+    },
+    /** Filter tab label (active) */
+    filterTextActive: {
+      color: '#ffffff',
+    },
+
+    // ── Avatars ───────────────────────────────────────────────────────────
+    /** Standard circular avatar (60dp, ProfileScreen size) */
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.border,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    /** Small circular avatar (44dp, WalletScreen agent cards) */
+    avatarSmall: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    /** Avatar initials text */
+    avatarText: {
+      color: colors.text,
+      fontSize: FONT_SIZE.title,
+      fontWeight: '700' as const,
+    },
+    /** Small avatar initials text */
+    avatarTextSmall: {
+      fontSize: FONT_SIZE.xl,
+      fontWeight: '700' as const,
+    },
+
+    // ── Empty States ──────────────────────────────────────────────────────
+    /** Centered empty-state wrapper */
+    emptyContainer: {
+      paddingVertical: 60,
+      alignItems: 'center' as const,
+    },
+    /** Empty-state text */
+    emptyText: {
+      color: colors.textDim,
+      fontSize: FONT_SIZE.lg,
+    },
+
+    // ── Alerts ────────────────────────────────────────────────────────────
+    /** Alert/warning banner row */
+    alertBanner: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: SPACING.sm,
+      backgroundColor: colors.errorBg,
+      borderWidth: 1,
+      borderColor: colors.errorBorder,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.md,
+    },
+    /** Alert banner text */
+    alertText: {
+      flex: 1 as const,
+      fontSize: FONT_SIZE.md,
+      fontWeight: '500' as const,
+      color: colors.errorText,
+      lineHeight: 16,
+    },
+
+    // ── Miscellaneous ─────────────────────────────────────────────────────
+    /** Horizontal divider line */
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    /** Icon button container (36dp circle, bordered) */
+    iconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    /** Quick-nav chip (tag-style button) */
+    chip: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: 7,
+    },
+    /** Quick-nav chip label */
+    chipText: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '600' as const,
+      color: colors.primary,
+    },
+    /** Quick-access icon box (32dp rounded square with tinted bg) */
+    quickIconBox: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      backgroundColor: colors.primary + '20',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    /** Status dot (8dp circle, pass backgroundColor inline) */
+    statusDot: {
+      width: SPACING.sm,
+      height: SPACING.sm,
+      borderRadius: SPACING.xs,
     },
   };
 }

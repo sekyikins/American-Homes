@@ -1,71 +1,22 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { Phone, MapPin, DollarSign, Calendar, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>;
 
 export default function CustomerDetailScreen({ route, navigation }: Props) {
-  const { colors, typography } = useTheme();
+  const { colors, typography, commonStyles } = useTheme();
   const { customers, orders } = useMockData();
   const { customerId } = route.params;
 
   const customer = customers.find((c) => c.id === customerId);
-
   const customerOrders = orders.filter((o) => o.customer_id === customerId);
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16 },
-    infoCard: {
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-      marginBottom: 20,
-    },
-    customerName: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 12 },
-    row: { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
-    rowText: { fontSize: 14, color: colors.textMuted, marginLeft: 8 },
-    debtContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    debtLabel: { fontSize: 14, fontWeight: '600', color: colors.textDim },
-    debtValue: { fontSize: 16, fontWeight: '700', color: colors.error, marginLeft: 'auto' },
-    sectionTitle: { ...typography.sectionTitle, marginTop: 10, marginBottom: 12 },
-    orderCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 16,
-      marginBottom: 12,
-    },
-    orderInfo: { flex: 1 },
-    orderCode: { fontSize: 14, fontWeight: '700', color: colors.text },
-    orderMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    orderMetaText: { fontSize: 12, color: colors.textDim, marginLeft: 4 },
-    orderAmount: { fontSize: 15, fontWeight: '700', color: colors.text, marginRight: 8 },
-    statusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
-      fontSize: 11,
-      fontWeight: '700',
-    },
-    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: 24, fontSize: 14 },
-  });
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
   if (!customer) {
     return (
@@ -74,6 +25,34 @@ export default function CustomerDetailScreen({ route, navigation }: Props) {
       </View>
     );
   }
+
+  // Format initials
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Format customer code
+  const getCustomerCode = (id: string) => {
+    const parts = id.split('-');
+    const lastPart = parts[parts.length - 1];
+    const num = parseInt(lastPart, 10);
+    return !isNaN(num) ? `CST-${String(num).padStart(3, '0')}` : `CST-${id.slice(0, 3).toUpperCase()}`;
+  };
+
+  // Get last order date
+  const sortedOrders = [...customerOrders].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const lastOrderDate = sortedOrders.length > 0 
+    ? sortedOrders[0].created_at.split('T')[0] 
+    : 'N/A';
+
+  const accountType = customer.total_debt > 0 ? 'Credit' : 'Cash';
 
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
@@ -88,25 +67,64 @@ export default function CustomerDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.infoCard}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Profile Area */}
+        <View style={styles.profileSection}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{getInitials(customer.name)}</Text>
+          </View>
           <Text style={styles.customerName}>{customer.name}</Text>
-          <View style={styles.row}>
-            <Phone size={16} color={colors.textDim} />
-            <Text style={styles.rowText}>{customer.phone}</Text>
+          <Text style={styles.customerCode}>{getCustomerCode(customer.id)}</Text>
+        </View>
+
+        {/* Stats Card */}
+        <View style={styles.statsCard}>
+          <View style={styles.statCol}>
+            <Text style={styles.statNumber}>{customerOrders.length}</Text>
+            <Text style={styles.statLabel}>Orders</Text>
           </View>
-          <View style={styles.row}>
-            <MapPin size={16} color={colors.textDim} />
-            <Text style={styles.rowText}>{customer.address}</Text>
-          </View>
-          <View style={styles.debtContainer}>
-            <DollarSign size={18} color={colors.error} />
-            <Text style={styles.debtLabel}>Outstanding Credit Balance</Text>
-            <Text style={styles.debtValue}>${customer.total_debt.toFixed(2)}</Text>
+          <View style={styles.statDivider} />
+          <View style={styles.statCol}>
+            <Text style={styles.statNumber}>
+              ${customer.total_debt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </Text>
+            <Text style={styles.statLabel}>Credit Balance</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Order History ({customerOrders.length})</Text>
+        {/* Details Table */}
+        <View style={styles.detailsTable}>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Phone</Text>
+            <Text style={styles.tableValue}>{customer.phone}</Text>
+          </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Address</Text>
+            <Text style={[styles.tableValue, { maxWidth: '70%', textAlign: 'right' }]} numberOfLines={1}>
+              {customer.address}
+            </Text>
+          </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableLabel}>Last Order</Text>
+            <Text style={styles.tableValue}>{lastOrderDate}</Text>
+          </View>
+          <View style={[styles.tableRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.tableLabel}>Account Type</Text>
+            <Text style={styles.tableValue}>{accountType}</Text>
+          </View>
+        </View>
+
+        {/* View Orders Action Button */}
+        <TouchableOpacity
+          style={styles.viewOrdersBtn}
+          onPress={() => navigation.navigate('Orders', { customerName: customer.name })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.viewOrdersBtnText}>View Orders</Text>
+        </TouchableOpacity>
+
+        {/* Order History */}
+        <Text style={styles.sectionTitle}>Order History</Text>
 
         {customerOrders.length === 0 ? (
           <Text style={styles.emptyText}>No orders recorded for this customer.</Text>
@@ -122,28 +140,13 @@ export default function CustomerDetailScreen({ route, navigation }: Props) {
               >
                 <View style={styles.orderInfo}>
                   <Text style={styles.orderCode}>Order #{item.id.slice(0, 8).toUpperCase()}</Text>
-                  <View style={styles.orderMeta}>
-                    <Calendar size={12} color={colors.textDim} />
-                    <Text style={styles.orderMetaText}>
-                      {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </Text>
-                  </View>
+                  <Text style={styles.orderDate}>
+                    {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
                 </View>
                 <Text style={styles.orderAmount}>${item.total_amount.toFixed(2)}</Text>
-                <View
-                  style={[
-                    {
-                      backgroundColor: badge.bg,
-                      borderColor: badge.border,
-                      borderWidth: 1,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 6,
-                      marginRight: 8,
-                    },
-                  ]}
-                >
-                  <Text style={{ color: badge.text, fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>
+                <View style={[styles.statusBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+                  <Text style={[styles.statusText, { color: badge.text }]}>
                     {item.payment_status}
                   </Text>
                 </View>
@@ -156,3 +159,142 @@ export default function CustomerDetailScreen({ route, navigation }: Props) {
     </View>
   );
 }
+
+const createStyles = (colors: any, cs: any, typo: any) =>
+  StyleSheet.create({
+    container: { ...cs.container },
+    scrollContent: {
+      paddingHorizontal: SPACING.lg,
+      paddingTop: SPACING.lg,
+      paddingBottom: 40,
+    },
+    profileSection: {
+      alignItems: 'center',
+      marginBottom: SPACING.lg,
+    },
+    avatar: {
+      ...cs.avatar,
+      marginBottom: SPACING.sm,
+      backgroundColor: colors.primary + '20',
+      borderColor: colors.primary + '40',
+    },
+    avatarText: {
+      ...cs.avatarText,
+      color: colors.primary,
+    },
+    customerName: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: SPACING.xs,
+    },
+    customerCode: {
+      ...typo.meta,
+      color: colors.textDim,
+    },
+    statsCard: {
+      ...cs.card,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: SPACING.md,
+      marginBottom: SPACING.lg,
+    },
+    statCol: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    statNumber: {
+      fontSize: FONT_SIZE.xxl,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    statLabel: {
+      fontSize: FONT_SIZE.xs,
+      color: colors.textDim,
+      textTransform: 'uppercase',
+      fontWeight: '600',
+    },
+    statDivider: {
+      width: 1,
+      height: 30,
+      backgroundColor: colors.border,
+    },
+    detailsTable: {
+      ...cs.card,
+      marginBottom: SPACING.lg,
+    },
+    tableRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: SPACING.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tableLabel: {
+      fontSize: FONT_SIZE.md,
+      color: colors.textDim,
+    },
+    tableValue: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    viewOrdersBtn: {
+      ...cs.button,
+      backgroundColor: colors.primary,
+      marginBottom: SPACING.xl,
+    },
+    viewOrdersBtnText: {
+      ...cs.buttonText,
+    },
+    sectionTitle: {
+      ...typo.sectionTitleCompact,
+      fontSize: FONT_SIZE.lg,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: SPACING.sm,
+    },
+    orderCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      ...cs.card,
+      padding: SPACING.md,
+      marginBottom: SPACING.sm,
+    },
+    orderInfo: {
+      flex: 1,
+    },
+    orderCode: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    orderDate: {
+      ...typo.meta,
+      marginTop: 2,
+    },
+    orderAmount: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '700',
+      color: colors.text,
+      marginRight: SPACING.sm,
+    },
+    statusBadge: {
+      ...cs.badge,
+      borderRadius: RADIUS.sm,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 3,
+      marginRight: SPACING.sm,
+    },
+    statusText: {
+      ...cs.badgeText,
+      fontSize: FONT_SIZE.xs,
+      textTransform: 'uppercase',
+    },
+    emptyText: {
+      ...typo.emptyBody,
+      paddingVertical: SPACING.lg,
+    },
+  });

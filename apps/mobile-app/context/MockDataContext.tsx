@@ -93,8 +93,10 @@ export interface WalletTransaction {
   amount: number;
   type: 'credit' | 'debit';
   reason: string;
+  method: string;
   reference_id: string | null;
   created_at: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 export interface Withdrawal {
@@ -296,8 +298,9 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
 
   const [walletBalance, setWalletBalance] = useState<number>(1840.00);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([
-    { id: 't-1', wallet_id: 'w-1', amount: 840.00, type: 'credit', reason: 'Commission on Samsung TV referral', reference_id: '77777777-0000-0000-0000-000000000001', created_at: '2024-06-20T09:15:00Z' },
-    { id: 't-2', wallet_id: 'w-1', amount: 1000.00, type: 'credit', reason: 'Direct Referral Commission Bonus', reference_id: null, created_at: '2024-06-22T14:30:00Z' },
+    { id: 't-1', wallet_id: 'w-1', amount: 840.00, type: 'credit', reason: 'Commission on Samsung TV referral', status: 'pending', method: "Auto-credit", reference_id: '77777777-0000-0000-0000-000000000001', created_at: '2024-06-20T09:15:00Z' },
+    { id: 't-2', wallet_id: 'w-1', amount: 1000.00, type: 'credit', reason: 'Direct Referral Commission Bonus', status: 'completed', method: "Auto-credit", reference_id: null, created_at: '2024-06-22T14:30:00Z' },
+    { id: 't-3', wallet_id: 'w-1', amount: 1000.00, type: 'debit', reason: 'Withdrawal to Mobile Money', status: 'completed', method: "MTN Momo", reference_id: null, created_at: '2024-06-22T15:30:00Z' },
   ]);
 
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([
@@ -403,6 +406,8 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
           wallet_id: 'w-1',
           amount: commissionEarned,
           type: 'credit',
+          method: "Auto-credit",
+          status: 'pending',
           reason: `Commission on Order ${newOrderId.slice(0, 8)}`,
           reference_id: newOrderId,
           created_at: new Date().toISOString()
@@ -435,6 +440,8 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
         wallet_id: 'w-1',
         amount: -amount,
         type: 'debit',
+        method: "Auto-credit",
+        status: 'pending',
         reason: `Withdrawal to ${network}`,
         reference_id: newWd.id,
         created_at: new Date().toISOString()

@@ -11,13 +11,13 @@ import {
 } from 'react-native';
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native';
 
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 
 import { useMockData } from '../context/MockDataContext';
 
 export default function ScanScreen() {
-  const { colors } = useTheme();
-  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const { colors, commonStyles, typography } = useTheme();
+  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
   const { products, batches, units, registerSerial, shipments } = useMockData();
@@ -242,63 +242,43 @@ export default function ScanScreen() {
 
 const TRIGGER_HEIGHT = 48; // approximate height of the trigger button
 
-const createStyles = (colors: any) => StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingBottom: 36 },
+const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
+  scroll: { ...cs.scroll },
+  content: { ...cs.content },
 
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textMuted,
+    ...typo.sectionTitle,
     marginTop: 28,
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    marginBottom: SPACING.md,
   },
 
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...cs.card,
+    padding: SPACING.xl,
   },
 
   fieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textDim,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 8,
+    ...typo.fieldLabel,
   },
 
   input: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    color: colors.text,
-    fontSize: 15,
-    marginBottom: 20,
+    ...cs.input,
+    marginBottom: SPACING.xl,
   },
 
   // ── Batch dropdown ─────────────────────────────────────────────────────────
   dropdownWrapper: {
-    // This is the positioning context for the floating panel
     zIndex: 100,
     marginBottom: 0,
   },
 
-  // Full-screen invisible overlay behind the panel: tap anywhere outside → close
   dropdownOverlay: {
     position: 'absolute',
     top: -2000,
     left: -2000,
     right: -2000,
     bottom: -2000,
-    zIndex: 1,            // behind the panel
+    zIndex: 1,
   },
 
   dropdownTrigger: {
@@ -308,25 +288,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     height: TRIGGER_HEIGHT,
   },
   dropdownTriggerOpen: {
     borderColor: colors.primary,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    borderBottomWidth: 0,  // merged with list top border
+    borderBottomWidth: 0,
   },
   dropdownTriggerDisabled: { opacity: 0.45 },
-  dropdownTriggerText: { flex: 1, fontSize: 15, color: colors.text, marginRight: 8 },
+  dropdownTriggerText: { flex: 1, fontSize: FONT_SIZE.xl, color: colors.text, marginRight: SPACING.sm },
   dropdownTriggerPlaceholder: { color: colors.textDim },
 
-  // Floating panel — sits on top of content below via absolute + zIndex
   dropdownList: {
     position: 'absolute',
-    top: TRIGGER_HEIGHT - 1,   // overlap trigger's bottom border by 1px
+    top: TRIGGER_HEIGHT - 1,
     left: 0,
     right: 0,
     zIndex: 200,
@@ -335,10 +314,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
     borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderBottomLeftRadius: RADIUS.md,
+    borderBottomRightRadius: RADIUS.md,
     overflow: 'hidden',
-    // Shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
@@ -347,37 +325,32 @@ const createStyles = (colors: any) => StyleSheet.create({
   dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
-  dropdownOptionBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  dropdownOptionBorder: { ...cs.listItemDivider },
   dropdownOptionSelected: { backgroundColor: colors.primary + '14' },
   dropdownOptionInner: { flex: 1 },
-  dropdownOptionName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  dropdownOptionMeta: { fontSize: 12, color: colors.textDim, marginTop: 2 },
-  dropdownCheck: { marginLeft: 8 },
+  dropdownOptionName: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.text },
+  dropdownOptionMeta: { fontSize: FONT_SIZE.md, color: colors.textDim, marginTop: 2 },
+  dropdownCheck: { marginLeft: SPACING.sm },
 
-  // Fixed spacer so card height stays consistent whether dropdown is open or not
   dropdownSpacer: { height: 20 },
 
   // ── Register button ────────────────────────────────────────────────────────
   actionBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...cs.button,
   },
-  actionBtnDisabled: { backgroundColor: colors.border },
-  actionBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  actionBtnDisabled: { ...cs.buttonDisabled },
+  actionBtnText: { ...cs.buttonText },
 
   // ── Scan log ──────────────────────────────────────────────────────────────
   logContainer: { flexDirection: 'column' },
-  logItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 10 },
-  logItemDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  logItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md, gap: 10 },
+  logItemDivider: { ...cs.listItemDivider },
   logIconComponent: { marginRight: 2 },
-  logText: { fontSize: 14, color: colors.textMuted },
+  logText: { fontSize: FONT_SIZE.lg, color: colors.textMuted },
   boldText: { color: colors.text, fontWeight: '700' },
-  emptyContainer: { paddingVertical: 16, alignItems: 'center' },
-  emptyText: { color: colors.textDim, fontSize: 14 },
+  emptyContainer: { paddingVertical: SPACING.lg, alignItems: 'center' },
+  emptyText: { ...cs.emptyText },
 });
