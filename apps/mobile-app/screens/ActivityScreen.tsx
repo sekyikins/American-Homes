@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { useTheme } from '../styles/theme';
 
 type LogEntry = {
@@ -50,20 +50,27 @@ export default function ActivityScreen() {
 
   const fetchLogs = useCallback(async (reset = false) => {
     const start = reset ? 0 : offset;
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('id, action, details, created_at, user_id')
-      .order('created_at', { ascending: false })
-      .range(start, start + PAGE - 1);
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('audit_logs')
+          .select('id, action, details, created_at, user_id')
+          .order('created_at', { ascending: false })
+          .range(start, start + PAGE - 1)
+      );
 
-    if (error) console.warn('Supabase error (audit_logs):', error.message);
+      if (error) console.warn('Supabase error (audit_logs):', error.message);
 
-    if (data) {
-      setLogs(prev => (reset ? data : [...prev, ...data]));
-      setHasMore(data.length === PAGE);
-      setOffset(start + data.length);
+      if (data) {
+        setLogs(prev => (reset ? data : [...prev, ...data]));
+        setHasMore(data.length === PAGE);
+        setOffset(start + data.length);
+      }
+    } catch (e) {
+      console.warn('Error fetching logs:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [offset]);
 
   useEffect(() => {

@@ -15,6 +15,9 @@ import { useTheme, ThemeMode, SPACING, RADIUS, FONT_SIZE } from '../styles/theme
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { useMockData } from '../context/MockDataContext';
+import { supabase } from '../lib/supabase';
+import SectionHeader from '../components/SectionHeader';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -33,7 +36,42 @@ interface Props {
 export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut }: Props) {
   const { colors, typography, commonStyles, mode, setMode } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const mockData = useMockData();
   const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
+
+  const currentUser = mockData?.currentUser;
+  
+  const handleSignOutPress = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      // ignore
+    }
+    if (mockData?.signOutMockUser) {
+      mockData.signOutMockUser();
+    }
+    if (onSignOut) {
+      onSignOut();
+    }
+    navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  };
+
+  const getRoleLabel = (role: string) => {
+    return role
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  };
 
   const menuItems = [
     { 
@@ -62,7 +100,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
     },
     { 
       title: 'Operations Reports', 
-      description: 'View discrepancy reports, damages, and shipment issue logs.', 
+      description: 'Log and view discrepancy reports, damages, and shipment issues.', 
       value: '',
       onPress: () => navigation.navigate('Reports')
     },
@@ -92,11 +130,17 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
       <View style={styles.staticHeader}>
         <View style={styles.operatorCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JC</Text>
+            <Text style={styles.avatarText}>
+              {currentUser ? getInitials(currentUser.name) : 'JC'}
+            </Text>
           </View>
           <View style={styles.operatorInfo}>
-            <Text style={styles.operatorName}>James Cole</Text>
-            <Text style={styles.operatorRole}>Warehouse Operator • Lead</Text>
+            <Text style={styles.operatorName}>
+              {currentUser ? currentUser.name : 'James Cole'}
+            </Text>
+            <Text style={styles.operatorRole}>
+              {currentUser ? getRoleLabel(currentUser.role) : 'Warehouse Operator'} • Lead
+            </Text>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
               <Text style={styles.statusText}>Cloud Synced</Text>
@@ -109,6 +153,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -119,7 +164,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         }
       >
         {/* Theme Selector */}
-        <Text style={styles.sectionTitle}>Appearance</Text>
+        <SectionHeader title="Appearance" />
         <View style={styles.card}>
           <View style={styles.themeRow}>
             <View style={styles.menuLeft}>
@@ -131,7 +176,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
           </View>
           <View style={styles.themeDivider} />
           <View style={styles.themeOptions}>
-            {THEME_OPTIONS.map((opt, idx) => {
+            {THEME_OPTIONS.map((opt) => {
               const isSelected = mode === opt.mode;
               return (
                 <TouchableOpacity
@@ -158,7 +203,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         </View>
 
         {/* Settings Options */}
-        <Text style={[styles.sectionTitle, { marginTop: SPACING.xxl }]}>App Preferences</Text>
+        <SectionHeader title="App Preferences" style={{ marginTop: SPACING.xxl }} />
         <View style={styles.card}>
           {menuItems.map((item, idx) => (
             <TouchableOpacity
@@ -186,7 +231,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         <TouchableOpacity 
           style={styles.signOutBtn} 
           activeOpacity={0.8}
-          onPress={onSignOut}
+          onPress={handleSignOutPress}
         >
           <Text style={styles.signOutBtnText}>Sign Out Operator</Text>
         </TouchableOpacity>
@@ -209,9 +254,6 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
     paddingTop: SPACING.md,
     paddingBottom: 36,
   },
-
-  // ── Section Title ───────────────────────────────────────────────────────────
-  sectionTitle: { ...typo.sectionTitle },
 
   // ── Operator Card ───────────────────────────────────────────────────────────
   operatorCard: {

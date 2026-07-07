@@ -9,11 +9,15 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { useMockData } from '../context/MockDataContext';
+import StatusBadge from '../components/StatusBadge';
+import EmptyState from '../components/EmptyState';
+import FilterBar, { FilterOption } from '../components/FilterBar';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,7 +34,7 @@ type Order = {
 
 type FilterKey = 'all' | PaymentStatus;
 
-const FILTERS: { key: FilterKey; label: string }[] = [
+const FILTERS: FilterOption[] = [
   { key: 'all', label: 'All' },
   { key: 'paid', label: 'Paid' },
   { key: 'credit', label: 'Credit' },
@@ -42,6 +46,7 @@ export default function OrdersScreen() {
   const { colors, commonStyles, typography } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'Orders'>>();
+  const mockData = useMockData();
   const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -56,61 +61,60 @@ export default function OrdersScreen() {
     }
   }, [route.params?.customerName]);
 
-  const STATUS_CONFIG: Record<
-    PaymentStatus,
-    { label: string; color: string; bg: string; border: string }
-  > = {
-    paid: {
-      label: 'Paid',
-      color: colors.success,
-      bg: colors.successBg,
-      border: colors.successBorder,
-    },
-    partial: {
-      label: 'Partial',
-      color: colors.pending,
-      bg: colors.pendingBg,
-      border: colors.pendingBorder,
-    },
-    credit: {
-      label: 'Credit',
-      color: colors.error,
-      bg: colors.errorBg,
-      border: colors.errorBorder,
-    },
-    pending_resolution: {
-      label: 'Pending',
-      color: colors.textDim,
-      bg: colors.card,
-      border: colors.border,
-    },
+  const loadMockOrders = () => {
+    const { orders: mockOrders, customers: mockCustomers } = mockData;
+    setOrders(
+      mockOrders.map(o => {
+        const cust = o.customer_id ? mockCustomers.find(c => c.id === o.customer_id) : null;
+        return {
+          id: o.id,
+          total_amount: o.total_amount,
+          payment_status: o.payment_status as PaymentStatus,
+          created_at: o.created_at,
+          customer_name: cust ? cust.name : 'Walk-in Customer',
+          customer_phone: cust ? cust.phone : '',
+        };
+      })
+    );
   };
 
   const fetchOrders = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('orders')
-      .select(
-        'id, total_amount, payment_status, created_at, customers ( name, phone )'
-      )
-      .order('created_at', { ascending: false })
-      .limit(60);
-
-    if (error) console.warn('Supabase error (orders):', error.message);
-
-    if (data) {
-      setOrders(
-        data.map(o => ({
-          id: o.id,
-          total_amount: Number(o.total_amount) || 0,
-          payment_status: (o.payment_status as PaymentStatus) || 'pending_resolution',
-          created_at: o.created_at,
-          customer_name: (o.customers as any)?.name || 'Walk-in Customer',
-          customer_phone: (o.customers as any)?.phone || '',
-        }))
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('orders')
+          .select(
+            'id, total_amount, payment_status, created_at, customers ( name, phone )'
+          )
+          .order('created_at', { ascending: false })
+          .limit(60)
       );
+
+      if (error) {
+        console.warn('Supabase error (orders):', error.message);
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        setOrders(
+          data.map(o => ({
+            id: o.id,
+            total_amount: Number(o.total_amount) || 0,
+            payment_status: (o.payment_status as PaymentStatus) || 'pending_resolution',
+            created_at: o.created_at,
+            customer_name: (o.customers as any)?.name || 'Walk-in Customer',
+            customer_phone: (o.customers as any)?.phone || '',
+          }))
+        );
+      } else {
+        loadMockOrders();
+      }
+    } catch (e) {
+      loadMockOrders();
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -141,14 +145,12 @@ export default function OrdersScreen() {
     });
 
   const renderItem = ({ item }: { item: Order }) => {
-    const cfg = STATUS_CONFIG[item.payment_status] || STATUS_CONFIG.pending_resolution;
     return (
       <TouchableOpacity
         style={styles.orderCard}
         onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}
         activeOpacity={0.7}
       >
-        <View style={[styles.orderStatusBar, { backgroundColor: cfg.color }]} />
         <View style={styles.orderBody}>
           <View style={styles.orderLeft}>
             <Text style={styles.orderId}>
@@ -164,16 +166,7 @@ export default function OrdersScreen() {
                 minimumFractionDigits: 2,
               })}
             </Text>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: cfg.bg, borderColor: cfg.border },
-              ]}
-            >
-              <Text style={[styles.statusText, { color: cfg.color }]}>
-                {cfg.label}
-              </Text>
-            </View>
+            <StatusBadge status={item.payment_status} />
           </View>
         </View>
       </TouchableOpacity>
@@ -183,28 +176,8 @@ export default function OrdersScreen() {
   return (
     <View style={styles.container}>
       {/* Filter tabs */}
-      <View style={styles.filterBar}>
-        {FILTERS.map(f => (
-          <TouchableOpacity
-            key={f.key}
-            style={[
-              styles.filterTab,
-              filter === f.key && styles.filterTabActive,
-            ]}
-            onPress={() => setFilter(f.key)}
-            activeOpacity={0.75}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                filter === f.key && styles.filterTextActive,
-              ]}
-            >
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <FilterBar options={FILTERS} activeKey={filter} onChange={setFilter} />
+
       {/* Search bar */}
       <View style={styles.searchBarContainer}>
         <TextInput
@@ -243,6 +216,7 @@ export default function OrdersScreen() {
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -252,14 +226,14 @@ export default function OrdersScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>No orders found</Text>
-              <Text style={styles.emptySubtitle}>
-                {filter === 'all'
+            <EmptyState
+              title="No orders found"
+              message={
+                filter === 'all'
                   ? 'Orders created from the POS system will appear here.'
-                  : `No ${filter} orders on record.`}
-              </Text>
-            </View>
+                  : `No ${filter} orders on record.`
+              }
+            />
           }
         />
       )}
@@ -283,12 +257,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontSize: FONT_SIZE.md,
     },
 
-    filterBar: { ...cs.filterBar },
-    filterTab: { ...cs.filterTab },
-    filterTabActive: { ...cs.filterTabActive },
-    filterText: { ...cs.filterText },
-    filterTextActive: { ...cs.filterTextActive },
-
     summaryBar: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -306,7 +274,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       flexDirection: 'row',
       ...cs.card,
     },
-    orderStatusBar: { width: 3 },
     orderBody: {
       flex: 1,
       flexDirection: 'row',
@@ -335,26 +302,5 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontWeight: '800',
       color: colors.text,
       fontVariant: ['tabular-nums'],
-    },
-    statusBadge: {
-      ...cs.badge,
-      borderRadius: 7,
-      paddingHorizontal: 9,
-      paddingVertical: 4,
-    },
-    statusText: { ...cs.badgeText },
-
-    emptyContainer: {
-      ...cs.emptyContainer,
-      paddingTop: 80,
-      paddingHorizontal: SPACING.xxxl,
-    },
-    emptyTitle: {
-      ...typo.emptyTitle,
-    },
-    emptySubtitle: {
-      ...typo.emptyBody,
-      marginTop: SPACING.sm,
-      lineHeight: 18,
     },
   });

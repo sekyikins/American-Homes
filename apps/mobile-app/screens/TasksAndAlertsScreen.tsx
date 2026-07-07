@@ -5,18 +5,26 @@ import { useMockData } from '../context/MockDataContext';
 import { Check, Calendar, Inbox, Package, ShieldAlert, CreditCard, Truck } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import EmptyState from '../components/EmptyState';
+import FilterBar from '../components/FilterBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TasksAndAlerts'>;
 
-export default function TasksAndAlertsScreen({ navigation }: Props) {
+export default function TasksAndAlertsScreen({ route }: Props) {
   const { colors } = useTheme();
   const { tasks, toggleTaskStatus, alerts, toggleAlertReadStatus } = useMockData();
-  const [activeTab, setActiveTab] = useState<'tasks' | 'alerts'>('tasks');
+  const initialTab = route.params?.initialTab ?? 'tasks';
+  const [activeTab, setActiveTab] = useState<'tasks' | 'alerts'>(initialTab);
 
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const openTasksCount = tasks.filter(t => t.status === 'pending').length;
   const alertsCount = alerts.length;
+
+  const tabOptions = [
+    { key: 'tasks', label: `Tasks (${openTasksCount} Open)` },
+    { key: 'alerts', label: `Alerts (${alertsCount})` }
+  ];
 
   const getPriorityColors = (priority: string) => {
     switch (priority) {
@@ -107,26 +115,13 @@ export default function TasksAndAlertsScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       {/* Segmented Controller */}
-      <View style={styles.segmentedContainer}>
-        <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'tasks' && styles.segmentBtnActive]}
-          onPress={() => setActiveTab('tasks')}
-          activeOpacity={0.9}
-        >
-          <Text style={[styles.segmentText, activeTab === 'tasks' && styles.segmentTextActive]}>
-            Tasks ({openTasksCount} Open)
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segmentBtn, activeTab === 'alerts' && styles.segmentBtnActive]}
-          onPress={() => setActiveTab('alerts')}
-          activeOpacity={0.9}
-        >
-          <Text style={[styles.segmentText, activeTab === 'alerts' && styles.segmentTextActive]}>
-            Alerts ({alertsCount})
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <FilterBar
+        options={tabOptions}
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        isSegmented={true}
+        style={styles.segmentedContainer}
+      />
 
       {/* List content */}
       {activeTab === 'tasks' ? (
@@ -134,12 +129,10 @@ export default function TasksAndAlertsScreen({ navigation }: Props) {
           data={tasks}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           renderItem={renderTaskItem}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Inbox size={48} color={colors.textDark} />
-              <Text style={styles.emptyText}>No tasks found</Text>
-            </View>
+            <EmptyState icon={Inbox} title="No tasks found" />
           }
         />
       ) : (
@@ -147,12 +140,10 @@ export default function TasksAndAlertsScreen({ navigation }: Props) {
           data={alerts}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           renderItem={renderAlertItem}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Inbox size={48} color={colors.textDark} />
-              <Text style={styles.emptyText}>No alerts found</Text>
-            </View>
+            <EmptyState icon={Inbox} title="No alerts found" />
           }
         />
       )}
@@ -166,33 +157,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.background,
   },
   segmentedContainer: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundDark,
-    borderRadius: 14,
-    padding: 4,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  segmentBtnActive: {
-    backgroundColor: colors.primary,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textDim,
-  },
-  segmentTextActive: {
-    color: '#ffffff',
-    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -285,15 +252,5 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 11,
     color: colors.textDark,
     marginTop: 6,
-  },
-  empty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 60,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textDim,
   },
 });

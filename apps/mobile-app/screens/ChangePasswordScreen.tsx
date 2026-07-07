@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useTheme } from '../styles/theme';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { Lock } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -28,7 +28,9 @@ export default function ChangePasswordScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const { error } = await withTimeout(
+        supabase.auth.updateUser({ password: newPassword })
+      );
       if (error) throw error;
       Alert.alert('Success', 'Password changed successfully');
       setOldPassword('');

@@ -162,6 +162,24 @@ export interface ShipmentReport {
   created_at: string;
 }
 
+export interface MockUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'manager' | 'agent' | 'warehouse_operator';
+  commission_type?: string;
+  commission_rate?: number;
+  balance: number;
+}
+
+export interface OfflineActivity {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  type: 'stock' | 'order' | 'scan';
+}
+
 // ─── Context Type ────────────────────────────────────────────────────────────
 
 interface MockDataContextType {
@@ -182,6 +200,9 @@ interface MockDataContextType {
   damageReports: DamageReport[];
   shipmentReports: ShipmentReport[];
   walletBalance: number;
+  users: MockUser[];
+  currentUser: MockUser | null;
+  offlineActivities: OfflineActivity[];
 
   // Actions
   addOrder: (customerId: string | null, total: number, paymentStatus: Order['payment_status'], items: Omit<OrderItem, 'id' | 'order_id'>[]) => void;
@@ -194,7 +215,12 @@ interface MockDataContextType {
   toggleTaskStatus: (taskId: string) => void;
   toggleAlertReadStatus: (alertId: string) => void;
   markNotificationsAsRead: () => void;
+  markNotificationAsRead: (id: string) => void;
   receiveShipmentStock: (shipmentId: string, productId: string, qty: number, cost: number) => void;
+  signInMockUser: (email: string, password: string) => boolean;
+  signOutMockUser: () => void;
+  syncActivities: (ids: string[]) => void;
+  resetActivities: () => void;
 }
 
 const MockDataContext = createContext<MockDataContextType | null>(null);
@@ -297,6 +323,116 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const [walletBalance, setWalletBalance] = useState<number>(1840.00);
+  const [currentUser, setCurrentUser] = useState<MockUser | null>({
+    id: 'u-1',
+    name: 'Kwame Asante',
+    email: 'kwame@americanhomeventures.com',
+    role: 'agent',
+    commission_type: 'percentage',
+    commission_rate: 0.05,
+    balance: 1840.00,
+  });
+
+  const [offlineActivities, setOfflineActivities] = useState<OfflineActivity[]>([
+    {
+      id: '1',
+      title: 'Stock Adjustment',
+      description: 'Added 5 units of AirPods Pro to inventory',
+      timestamp: '10:24 AM',
+      type: 'stock',
+    },
+    {
+      id: '2',
+      title: 'Scan Serial Number',
+      description: 'Registered serial number SN-12345 to batch B-987',
+      timestamp: '10:18 AM',
+      type: 'scan',
+    },
+    {
+      id: '3',
+      title: 'Order Status Update',
+      description: 'Marked ORD-2024-1205 as "shipped"',
+      timestamp: '10:05 AM',
+      type: 'order',
+    },
+  ]);
+
+  const mockUsers: MockUser[] = [
+    {
+      id: 'u-1',
+      name: 'Kwame Asante',
+      email: 'kwame@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'percentage',
+      commission_rate: 0.05,
+      balance: walletBalance,
+    },
+    {
+      id: 'u-2',
+      name: 'James Cole',
+      email: 'james@americanhomeventures.com',
+      role: 'warehouse_operator',
+      commission_type: 'flat',
+      commission_rate: 0,
+      balance: 0.00,
+    },
+    {
+      id: 'u-3',
+      name: 'Marcus Reynolds',
+      email: 'marcus@americanhomeventures.com',
+      role: 'admin',
+      commission_type: 'flat',
+      commission_rate: 0,
+      balance: 500.00,
+    }
+  ];
+
+  const signInMockUser = (email: string, password: string): boolean => {
+    const found = mockUsers.find(u => u.email === email && password === 'password123');
+    if (found) {
+      setCurrentUser(found);
+      return true;
+    }
+    return false;
+  };
+
+  const signOutMockUser = () => {
+    setCurrentUser(null);
+  };
+
+  const syncActivities = (ids: string[]) => {
+    setOfflineActivities(prev => prev.filter(act => !ids.includes(act.id)));
+  };
+
+  const resetActivities = () => {
+    setOfflineActivities([
+      {
+        id: '1',
+        title: 'Stock Adjustment',
+        description: 'Added 5 units of AirPods Pro to inventory',
+        timestamp: '10:24 AM',
+        type: 'stock',
+      },
+      {
+        id: '2',
+        title: 'Scan Serial Number',
+        description: 'Registered serial number SN-12345 to batch B-987',
+        timestamp: '10:18 AM',
+        type: 'scan',
+      },
+      {
+        id: '3',
+        title: 'Order Status Update',
+        description: 'Marked ORD-2024-1205 as "shipped"',
+        timestamp: '10:05 AM',
+        type: 'order',
+      },
+    ]);
+  };
+
+  const resolvedCurrentUser = currentUser && currentUser.id === 'u-1'
+    ? { ...currentUser, balance: walletBalance }
+    : currentUser;
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([
     { id: 't-1', wallet_id: 'w-1', amount: 840.00, type: 'credit', reason: 'Commission on Samsung TV referral', status: 'pending', method: "Auto-credit", reference_id: '77777777-0000-0000-0000-000000000001', created_at: '2024-06-20T09:15:00Z' },
     { id: 't-2', wallet_id: 'w-1', amount: 1000.00, type: 'credit', reason: 'Direct Referral Commission Bonus', status: 'completed', method: "Auto-credit", reference_id: null, created_at: '2024-06-22T14:30:00Z' },
@@ -565,6 +701,10 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
   const receiveShipmentStock = (shipmentId: string, productId: string, qty: number, cost: number) => {
     const newBatchId = `55555555-${Math.floor(1000 + Math.random() * 9000)}-0000-0000-000000000000`;
     const newBatch: InventoryBatch = {
@@ -609,6 +749,9 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
         damageReports,
         shipmentReports,
         walletBalance,
+        users: mockUsers,
+        currentUser: resolvedCurrentUser,
+        offlineActivities,
 
         addOrder,
         addWithdrawal,
@@ -620,7 +763,12 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
         toggleTaskStatus,
         toggleAlertReadStatus,
         markNotificationsAsRead,
-        receiveShipmentStock
+        receiveShipmentStock,
+        signInMockUser,
+        signOutMockUser,
+        syncActivities,
+        resetActivities,
+        markNotificationAsRead,
       }}
     >
       {children}

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { ArrowUpDown, ChevronDown, Check, Plus, Minus } from 'lucide-react-native';
+import { ArrowUpDown, ChevronDown, Plus, Minus } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StockAdjust'>;
 
@@ -20,6 +22,8 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
   const [reason, setReason] = useState('');
 
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const selectedProduct = products.find(p => p.id === productId);
 
@@ -41,11 +45,8 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
 
     setQty('');
     setReason('');
-
-    navigation.navigate('ReportSuccess', {
-      title: 'Adjustment Logged',
-      message: `Stock level adjusted successfully. System records updated by ${signedQty > 0 ? '+' : ''}${signedQty} units for ${selectedProduct?.name || ''}.`,
-    });
+    setSuccessMsg(`Stock level adjusted successfully. System records updated by ${signedQty > 0 ? '+' : ''}${signedQty} units for ${selectedProduct?.name || ''}.`);
+    setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -88,13 +89,6 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
     directionTextActiveAdd: { color: colors.success, fontWeight: '700' },
     directionTextActiveRemove: { color: colors.error, fontWeight: '700' },
     input: { ...commonStyles.input },
-    submitBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
-      flexDirection: 'row',
-      gap: 8,
-    },
-    submitBtnText: { ...commonStyles.buttonText },
     modalOverlay: {
       position: 'absolute',
       top: 0,
@@ -124,7 +118,7 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Product Selector */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Select Product</Text>
@@ -183,10 +177,14 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleAdjust} activeOpacity={0.8}>
-          <ArrowUpDown size={20} color="#fff" />
-          <Text style={styles.submitBtnText}>Apply Adjustment</Text>
-        </TouchableOpacity>
+        <AppButton
+          label="Apply Adjustment"
+          onPress={handleAdjust}
+          variant="primary"
+          icon={<ArrowUpDown size={20} color="#fff" />}
+          fullWidth
+          style={{ marginTop: 20 }}
+        />
       </ScrollView>
 
       {/* Product Modal */}
@@ -211,6 +209,16 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
           </View>
         </TouchableOpacity>
       )}
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Adjustment Logged"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }

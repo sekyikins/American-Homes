@@ -5,6 +5,8 @@ import { useMockData } from '../context/MockDataContext';
 import { AlertTriangle, ChevronDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportShipment'>;
 
@@ -30,6 +32,8 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
 
   const [showShipmentPicker, setShowShipmentPicker] = useState(false);
   const [showIssuePicker, setShowIssuePicker] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const selectedShipment = shipments.find(s => s.id === shipmentId);
 
@@ -42,11 +46,8 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
     addShipmentReport(shipmentId, issueType, description);
 
     setDescription('');
-
-    navigation.navigate('ReportSuccess', {
-      title: 'Shipment Issue Logged',
-      message: `Your report regarding shipment ${selectedShipment?.shipment_code || ''} has been sent to operations control.`,
-    });
+    setSuccessMsg(`Your report regarding shipment ${selectedShipment?.shipment_code || ''} has been sent to operations control.`);
+    setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -70,14 +71,6 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
       height: 100,
       textAlignVertical: 'top',
     },
-    submitBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
-      flexDirection: 'row',
-      gap: 8,
-      backgroundColor: colors.pending,
-    },
-    submitBtnText: { ...commonStyles.buttonText },
     modalOverlay: {
       position: 'absolute',
       top: 0,
@@ -142,10 +135,14 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
-          <AlertTriangle size={20} color="#fff" />
-          <Text style={styles.submitBtnText}>Submit Shipment Report</Text>
-        </TouchableOpacity>
+        <AppButton
+          label="Submit Shipment Report"
+          onPress={handleSubmit}
+          variant="primary"
+          icon={<AlertTriangle size={20} color="#fff" />}
+          fullWidth
+          style={{ marginTop: 20, backgroundColor: colors.pending }}
+        />
       </ScrollView>
 
       {/* Shipment Modal */}
@@ -193,6 +190,16 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
           </View>
         </TouchableOpacity>
       )}
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Shipment Issue Logged"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }

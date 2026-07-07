@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { Info, DollarSign, Layers, CheckCircle, ShieldAlert, ArrowUpDown, Hammer, FileWarning } from 'lucide-react-native';
+import { ArrowUpDown, Hammer, FileWarning } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import SectionHeader from '../components/SectionHeader';
+import EmptyState from '../components/EmptyState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>;
 
@@ -52,7 +54,6 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     },
     statValue: { fontSize: 18, fontWeight: '700', color: colors.text },
     statLabel: { fontSize: 11, color: colors.textDim, marginTop: 4 },
-    sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
     variantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
     variantSku: { fontSize: 14, fontWeight: '700', color: colors.text },
     variantName: { fontSize: 12, color: colors.textDim, marginTop: 2 },
@@ -82,20 +83,19 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       gap: 6,
     },
     actionBtnText: { fontSize: 13, fontWeight: '700' },
-    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: 24, fontSize: 14 },
   });
 
   if (!product) {
     return (
       <View style={styles.container}>
-        <Text style={styles.emptyText}>Product not found</Text>
+        <EmptyState title="Product not found" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Info card */}
         <View style={styles.card}>
           <Text style={styles.productCategory}>{product.category}</Text>
@@ -142,8 +142,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Variants */}
+        <SectionHeader title="Variants & Catalog Info" variant="uppercase" />
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Variants & Catalog Info</Text>
           {productVariants.map((v) => (
             <View key={v.id} style={styles.variantRow}>
               <View>
@@ -159,10 +159,10 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Batches */}
+        <SectionHeader title="Inventory Batches" variant="uppercase" />
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Inventory Batches</Text>
           {productBatches.length === 0 ? (
-            <Text style={styles.emptyText}>No batches available</Text>
+            <EmptyState message="No batches available" />
           ) : (
             productBatches.map((b) => {
               const shipment = shipments.find(s => s.id === b.shipment_id);
@@ -182,31 +182,33 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
         {/* Serial Units */}
         {product.has_serial && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Serial Numbers ({productUnits.length})</Text>
-            {productUnits.length === 0 ? (
-              <Text style={styles.emptyText}>No registered serial units</Text>
-            ) : (
-              productUnits.map((u) => {
-                const isAvailable = u.status === 'available';
-                const isDamaged = u.status === 'damaged';
-                const statusColors = isAvailable
-                  ? { bg: colors.successBg, text: colors.successText }
-                  : isDamaged
-                  ? { bg: colors.errorBg, text: colors.errorText }
-                  : { bg: colors.pendingBg, text: colors.pendingText };
+          <>
+            <SectionHeader title={`Serial Numbers (${productUnits.length})`} variant="uppercase" />
+            <View style={styles.card}>
+              {productUnits.length === 0 ? (
+                <EmptyState message="No registered serial units" />
+              ) : (
+                productUnits.map((u) => {
+                  const isAvailable = u.status === 'available';
+                  const isDamaged = u.status === 'damaged';
+                  const statusColors = isAvailable
+                    ? { bg: colors.successBg, text: colors.successText }
+                    : isDamaged
+                    ? { bg: colors.errorBg, text: colors.errorText }
+                    : { bg: colors.pendingBg, text: colors.pendingText };
 
-                return (
-                  <View key={u.id} style={styles.unitRow}>
-                    <Text style={styles.serialText}>{u.serial_number}</Text>
-                    <View style={[styles.unitStatus, { backgroundColor: statusColors.bg }]}>
-                      <Text style={[styles.unitStatusText, { color: statusColors.text }]}>{u.status}</Text>
+                  return (
+                    <View key={u.id} style={styles.unitRow}>
+                      <Text style={styles.serialText}>{u.serial_number}</Text>
+                      <View style={[styles.unitStatus, { backgroundColor: statusColors.bg }]}>
+                        <Text style={[styles.unitStatusText, { color: statusColors.text }]}>{u.status}</Text>
+                      </View>
                     </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
+                  );
+                })
+              )}
+            </View>
+          </>
         )}
       </ScrollView>
     </View>

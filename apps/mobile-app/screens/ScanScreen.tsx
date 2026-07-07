@@ -10,10 +10,10 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { ChevronDown, ChevronUp, Check } from 'lucide-react-native';
-
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
-
 import { useMockData } from '../context/MockDataContext';
+import SectionHeader from '../components/SectionHeader';
+import EmptyState from '../components/EmptyState';
 
 export default function ScanScreen() {
   const { colors, commonStyles, typography } = useTheme();
@@ -80,14 +80,12 @@ export default function ScanScreen() {
 
   const close = () => setDropdownOpen(false);
 
-  // Wire up the button action below
-  const handleRegisterSerial = handleRegister;
-
   return (
     <TouchableWithoutFeedback onPress={close}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -202,7 +200,7 @@ export default function ScanScreen() {
               styles.actionBtn,
               (!selectedBatchId || activeBatches.length === 0) && styles.actionBtnDisabled,
             ]}
-            onPress={handleRegisterSerial}
+            onPress={handleRegister}
             activeOpacity={0.8}
             disabled={!selectedBatchId || activeBatches.length === 0}
           >
@@ -211,7 +209,7 @@ export default function ScanScreen() {
         </View>
 
         {/* ── Scans Log ── */}
-        <Text style={styles.sectionTitle}>Recent Scans Log</Text>
+        <SectionHeader title="Recent Scans Log" />
         <View style={styles.card}>
           <View style={styles.logContainer}>
             {scannedHistory.map((sn, idx) => (
@@ -229,9 +227,7 @@ export default function ScanScreen() {
               </View>
             ))}
             {scannedHistory.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No registered serials yet</Text>
-              </View>
+              <EmptyState message="No registered serials yet" style={{ paddingVertical: SPACING.md }} />
             )}
           </View>
         </View>
@@ -245,12 +241,6 @@ const TRIGGER_HEIGHT = 48; // approximate height of the trigger button
 const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   scroll: { ...cs.scroll },
   content: { ...cs.content },
-
-  sectionTitle: {
-    ...typo.sectionTitle,
-    marginTop: 28,
-    marginBottom: SPACING.md,
-  },
 
   card: {
     ...cs.card,
@@ -351,6 +341,4 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   logIconComponent: { marginRight: 2 },
   logText: { fontSize: FONT_SIZE.lg, color: colors.textMuted },
   boldText: { color: colors.text, fontWeight: '700' },
-  emptyContainer: { paddingVertical: SPACING.lg, alignItems: 'center' },
-  emptyText: { ...cs.emptyText },
 });

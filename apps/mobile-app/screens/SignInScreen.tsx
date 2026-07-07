@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '../styles/theme';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
+import { useMockData } from '../context/MockDataContext';
+import { Image } from 'react-native';
+import logo from "../assets/icon.png";
 
 interface SignInScreenProps {
   onSignInSuccess: () => void;
@@ -9,7 +12,8 @@ interface SignInScreenProps {
 
 export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
   const { colors, typography, commonStyles } = useTheme();
-  const [email, setEmail] = useState('test@example.com');
+  const mockData = useMockData();
+  const [email, setEmail] = useState('kwame@americanhomeventures.com');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
 
@@ -20,14 +24,26 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
     }
 
     setLoading(true);
+    let error: any = null;
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const res = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+      );
+      error = res.error;
+    } catch (err: any) {
+      error = err;
+    }
 
+    try {
       if (error) {
-        throw error;
+        // Fallback to mock data authentication
+        const mockSuccess = mockData.signInMockUser(email, password);
+        if (!mockSuccess) {
+          throw error;
+        }
       }
 
       onSignInSuccess();
@@ -43,6 +59,8 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
       flex: 1,
       backgroundColor: colors.background,
       padding: 24,
+      marginTop: '-25%',
+      justifyContent: 'center',
     },
     logoContainer: {
       marginTop: 40,
@@ -53,14 +71,12 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
       width: 80,
       height: 80,
       borderRadius: 16,
-      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    logoText: {
-      fontSize: 36,
-      fontWeight: '800',
-      color: '#fff',
+    logoImage: {
+      width: 200,
+      height: 200,
     },
     title: {
       ...typography.title,
@@ -98,7 +114,11 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
     <View style={styles.container}>
       <View style={styles.logoContainer}>
         <View style={styles.logo}>
-          <Text style={styles.logoText}>A</Text>
+          <Image
+            source={logo}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
       </View>
 

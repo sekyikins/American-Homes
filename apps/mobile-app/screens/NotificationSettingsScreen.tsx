@@ -34,27 +34,39 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
       <View style={styles.content}>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Low Stock Alerts</Text>
-          <Switch value={lowStock} onValueChange={setLowStock} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={lowStock ? colors.primary : colors.textDim} />
+          <TouchableOpacity>
+            <Switch value={lowStock} onValueChange={setLowStock} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={lowStock ? colors.primary : colors.textDim} />
+          </TouchableOpacity>
         </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Order Updates</Text>
-          <Switch value={orderUpdates} onValueChange={setOrderUpdates} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={orderUpdates ? colors.primary : colors.textDim} />
+          <TouchableOpacity>
+            <Switch value={orderUpdates} onValueChange={setOrderUpdates} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={orderUpdates ? colors.primary : colors.textDim} />
+          </TouchableOpacity>
         </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Shipment Alerts</Text>
-          <Switch value={shipmentAlerts} onValueChange={setShipmentAlerts} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={shipmentAlerts ? colors.primary : colors.textDim} />
+          <TouchableOpacity>
+            <Switch value={shipmentAlerts} onValueChange={setShipmentAlerts} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={shipmentAlerts ? colors.primary : colors.textDim} />
+          </TouchableOpacity>
         </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Wallet Activity</Text>
-          <Switch value={walletActivity} onValueChange={setWalletActivity} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={walletActivity ? colors.primary : colors.textDim} />
+          <TouchableOpacity>
+            <Switch value={walletActivity} onValueChange={setWalletActivity} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={walletActivity ? colors.primary : colors.textDim} />
+          </TouchableOpacity>
         </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Task Reminders</Text>
-          <Switch value={tastReminders} onValueChange={setTastReminders} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={tastReminders ? colors.primary : colors.textDim} />
+          <TouchableOpacity>
+            <Switch value={tastReminders} onValueChange={setTastReminders} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={tastReminders ? colors.primary : colors.textDim} />
+          </TouchableOpacity>
         </View>
         <View style={styles.settingRow}>
           <Text style={styles.settingText}>Promotions & Offers</Text>
-          <Switch value={promotions} onValueChange={setPromotions} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={promotions ? colors.primary : colors.textDim} />
+          <TouchableOpacity>
+            <Switch value={promotions} onValueChange={setPromotions} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={promotions ? colors.primary : colors.textDim} />
+          </TouchableOpacity>
         </View>
       </View>
     </View>

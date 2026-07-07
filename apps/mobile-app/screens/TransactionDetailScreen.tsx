@@ -77,7 +77,7 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Amount Card */}
         <View style={styles.amountCard}>
           <View style={[styles.typeIcon, { backgroundColor: iconBg }]}>

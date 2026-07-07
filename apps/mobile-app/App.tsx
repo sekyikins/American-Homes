@@ -13,7 +13,7 @@ import { ThemeProvider, useTheme, SPACING, RADIUS, FONT_SIZE } from './styles/th
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 import { MockDataProvider, useMockData } from './context/MockDataContext';
-import { supabase } from './lib/supabase';
+import { supabase, withTimeout } from './lib/supabase';
 
 // ── Auth Screens ──────────────────────────────────────────────────────────────
 import WelcomeScreen from './screens/WelcomeScreen';
@@ -55,6 +55,7 @@ import OrderLookupScreen from './screens/OrderLookupScreen';
 import ProductSearchScreen from './screens/ProductSearchScreen';
 import ReportSuccessScreen from './screens/ReportSuccessScreen';
 import WithdrawScreen from './screens/WithdrawScreen';
+import AgentWalletScreen from './screens/AgentWalletScreen';
 
 // ── Nav types ─────────────────────────────────────────────────────────────────
 import { RootStackParamList, MainTabParamList } from './navigation/types';
@@ -84,21 +85,29 @@ function CustomHeader({ route, navigation, options }: any) {
   const mockData = useMockData();
   const unreadCount = mockData ? mockData.notifications.filter(n => !n.read).length : 0;
 
-  const [userName, setUserName] = useState('Kwame Asante');
-  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState(mockData?.currentUser?.name || 'Kwame Asante');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isHome) return;
+    if (mockData?.currentUser) {
+      setUserName(mockData.currentUser.name);
+      setLoading(false);
+      return;
+    }
     let active = true;
     const fetchUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.signInAnonymously ? await supabase.auth.getUser() : { data: { user: null } };
+        setLoading(true);
+        const { data: { user } } = await withTimeout(supabase.auth.getUser());
         if (!user || !active) return;
-        const { data: profile } = await supabase
-          .from('users')
-          .select('name')
-          .eq('id', user.id)
-          .single();
+        const { data: profile } = await withTimeout(
+          supabase
+            .from('users')
+            .select('name')
+            .eq('id', user.id)
+            .single()
+        );
         if (profile?.name && active) {
           setUserName(profile.name);
         }
@@ -112,7 +121,7 @@ function CustomHeader({ route, navigation, options }: any) {
     return () => {
       active = false;
     };
-  }, [isHome]);
+  }, [isHome, mockData?.currentUser]);
 
   const styles = StyleSheet.create({
     safeArea: {
@@ -434,6 +443,11 @@ function RootNavigator() {
         name="Scan"
         component={ScanScreen}
         options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Scan' }}
+      />
+      <Stack.Screen
+        name="AgentWallet"
+        component={AgentWalletScreen}
+        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Agent Wallet' }}
       />
     </Stack.Navigator>
   );

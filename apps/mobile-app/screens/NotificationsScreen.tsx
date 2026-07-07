@@ -1,59 +1,34 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { Bell, Inbox, AlertTriangle, CheckCircle, Package } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import EmptyState from '../components/EmptyState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
 export default function NotificationsScreen({ navigation }: Props) {
-  const { colors, typography } = useTheme();
-  const { notifications, markNotificationsAsRead } = useMockData();
+  const { colors, commonStyles } = useTheme();
+  const { notifications, markNotificationsAsRead, markNotificationAsRead } = useMockData();
   const [refreshing, setRefreshing] = useState(false);
 
   const handleNotificationPress = (notification: any) => {
-    console.log('Notification pressed:', notification);
+    // Mark this specific notification as read
+    markNotificationAsRead(notification.id);
+
+    // Deep link based on category
+    if (notification.category === 'inventory') {
+      navigation.navigate('TasksAndAlerts', { initialTab: 'alerts' });
+    } else if (notification.category === 'orders') {
+      navigation.navigate('Orders');
+    } else if (notification.category === 'shipments') {
+      navigation.navigate('Shipments');
+    }
   };
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    actionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingTop: 14,
-      paddingBottom: 10,
-    },
-    unreadCount: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
-    markReadText: { fontSize: 13, fontWeight: '600', color: colors.primary },
-    listContent: { paddingHorizontal: 16, paddingBottom: 30 },
-    row: {
-      flexDirection: 'row',
-      padding: 16,
-      backgroundColor: colors.card,
-      borderLeftWidth: 1,
-      borderRightWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'flex-start',
-      gap: 12,
-    },
-    rowFirst: { borderTopWidth: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-    rowLast: { borderBottomWidth: 1, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
-    rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
-    rowUnread: { backgroundColor: colors.primary + '0a' },
-    iconBox: { marginTop: 2 },
-    bodyBox: { flex: 1 },
-    title: { fontSize: 14, fontWeight: '600', color: colors.textDim },
-    titleUnread: { color: colors.text, fontWeight: '700' },
-    body: { fontSize: 13, color: colors.textMuted, marginTop: 4, lineHeight: 18 },
-    time: { fontSize: 11, color: colors.textDark, marginTop: 6 },
-    unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, alignSelf: 'center' },
-    empty: { alignItems: 'center', justifyContent: 'center', padding: 60, gap: 12 },
-    emptyText: { fontSize: 14, color: colors.textDim },
-  });
+  const styles = React.useMemo(() => createStyles(colors, commonStyles), [colors, commonStyles]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -119,12 +94,45 @@ export default function NotificationsScreen({ navigation }: Props) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Inbox size={48} color={colors.textDark} />
-            <Text style={styles.emptyText}>No notifications</Text>
-          </View>
+          <EmptyState icon={Inbox} title="No notifications" message="Your notification inbox is clean!" />
         }
       />
     </View>
   );
 }
+
+const createStyles = (colors: any, cs: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  actionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  unreadCount: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
+  markReadText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  listContent: { paddingHorizontal: 16, paddingBottom: 30 },
+  row: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: colors.card,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  rowFirst: { borderTopWidth: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  rowLast: { borderBottomWidth: 1, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowUnread: { backgroundColor: colors.primary + '0a' },
+  iconBox: { marginTop: 2 },
+  bodyBox: { flex: 1 },
+  title: { fontSize: 14, fontWeight: '600', color: colors.textDim },
+  titleUnread: { color: colors.text, fontWeight: '700' },
+  body: { fontSize: 13, color: colors.textMuted, marginTop: 4, lineHeight: 18 },
+  time: { fontSize: 11, color: colors.textDark, marginTop: 6 },
+  unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, alignSelf: 'center' },
+});

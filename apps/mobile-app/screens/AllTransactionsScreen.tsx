@@ -1,26 +1,56 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
+import { ArrowUpRight, ArrowDownRight, Inbox } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import EmptyState from '../components/EmptyState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AllTransactions'>;
 
 export default function AllTransactionsScreen({ navigation }: Props) {
-  const { colors, typography } = useTheme();
+  const { colors, commonStyles } = useTheme();
   const { walletTransactions } = useMockData();
   const [refreshing, setRefreshing] = useState(false);
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    listContent: { padding: 8 },
+    statsRow: {
+      padding: SPACING.md,
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+    statBox: {
+      flex: 1,
+      flexDirection: 'column',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
+      backgroundColor: colors.card,
+    },
+    statVal: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+      fontVariant: ['tabular-nums'],
+    },
+    statLbl: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+    listContent: { padding: SPACING.sm, paddingBottom: 32 },
     transactionCard: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       padding: 10,
@@ -35,9 +65,9 @@ export default function AllTransactionsScreen({ navigation }: Props) {
       marginRight: 12,
     },
     detailsContainer: { flex: 1 },
-    reason: { fontSize: 14, fontWeight: '700', color: colors.text },
-    date: { fontSize: 12, color: colors.textDim, marginTop: 4 },
-    amount: { fontSize: 16, fontWeight: '700' },
+    reason: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.text },
+    date: { fontSize: FONT_SIZE.md, color: colors.textDim, marginTop: 4 },
+    amount: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
   });
 
   const onRefresh = () => {
@@ -45,22 +75,35 @@ export default function AllTransactionsScreen({ navigation }: Props) {
     setTimeout(() => setRefreshing(false), 800);
   };
 
+  const totalEarned = walletTransactions
+    .filter(t => t.type === 'credit')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalWithdrawn = walletTransactions
+    .filter(t => t.type === 'debit')
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
   return (
     <View style={styles.container}>
-      <View style={{ padding: 8, display: 'flex', flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', gap: 8 }}>
-        <View style={{ flex: 1, flexDirection: 'column', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8, backgroundColor: colors.card }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>549595</Text>
-          <Text style={{ fontSize: 12, color: colors.primary }}>Total Earned</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={styles.statVal}>
+            ${totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </Text>
+          <Text style={styles.statLbl}>Total Earned</Text>
         </View>
-        <View style={{ flex: 1, flexDirection: 'column', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8, backgroundColor: colors.card }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>1666</Text>
-          <Text style={{ fontSize: 12, color: colors.primary }}>Withdrawn</Text>
+        <View style={styles.statBox}>
+          <Text style={styles.statVal}>
+            ${totalWithdrawn.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </Text>
+          <Text style={styles.statLbl}>Withdrawn</Text>
         </View>
       </View>
       <FlatList
         data={walletTransactions}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
@@ -96,6 +139,9 @@ export default function AllTransactionsScreen({ navigation }: Props) {
             </TouchableOpacity>
           );
         }}
+        ListEmptyComponent={
+          <EmptyState icon={Inbox} title="No transactions" message="Your transaction ledger is empty." />
+        }
       />
     </View>
   );

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { ChevronLeft, ChevronDown, Wallet, ArrowUpRight } from 'lucide-react-native';
+import { ChevronDown, ArrowUpRight } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Withdraw'>;
 
@@ -12,11 +14,17 @@ const networks = ['MTN Mobile Money', 'Telecel Cash', 'AirtelTigo Money', 'Bank 
 
 export default function WithdrawScreen({ navigation }: Props) {
   const { colors, typography, commonStyles } = useTheme();
-  const { walletBalance, addWithdrawal } = useMockData();
+  const mockData = useMockData();
+  const { currentUser, addWithdrawal } = mockData;
+
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState('');
   const [network, setNetwork] = useState(networks[0]);
   const [showNetworkPicker, setShowNetworkPicker] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const myBalance = currentUser?.balance ?? 0;
 
   const handleWithdraw = () => {
     if (!amount || !phone || !network) {
@@ -30,19 +38,17 @@ export default function WithdrawScreen({ navigation }: Props) {
       return;
     }
 
-    if (value > walletBalance) {
-      Alert.alert('Insufficient Balance', `Your current balance is $${walletBalance.toFixed(2)}`);
+    if (value > myBalance) {
+      Alert.alert('Insufficient Balance', `Your current balance is $${myBalance.toFixed(2)}`);
       return;
     }
 
     const success = addWithdrawal(value, network, phone);
     if (success) {
+      setSuccessMsg(`Your withdrawal of $${value.toFixed(2)} to ${network} (${phone}) has been submitted and is currently processing.`);
       setAmount('');
       setPhone('');
-      navigation.navigate('ReportSuccess', {
-        title: 'Withdrawal Initiated',
-        message: `Your withdrawal of $${value.toFixed(2)} to ${network} (${phone}) has been submitted and is currently processing.`,
-      });
+      setSuccessVisible(true);
     } else {
       Alert.alert('Error', 'Failed to initiate withdrawal');
     }
@@ -75,13 +81,6 @@ export default function WithdrawScreen({ navigation }: Props) {
     },
     pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
     input: { ...commonStyles.input },
-    submitBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
-      flexDirection: 'row',
-      gap: 8,
-    },
-    submitBtnText: { ...commonStyles.buttonText },
     modalOverlay: {
       position: 'absolute',
       top: 0,
@@ -110,11 +109,11 @@ export default function WithdrawScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Balance Display */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Available Balance</Text>
-          <Text style={styles.balanceValue}>${walletBalance.toFixed(2)}</Text>
+          <Text style={styles.balanceValue}>${myBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
         </View>
 
         {/* Network Picker */}
@@ -151,10 +150,14 @@ export default function WithdrawScreen({ navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleWithdraw} activeOpacity={0.8}>
-          <ArrowUpRight size={20} color="#fff" />
-          <Text style={styles.submitBtnText}>Withdraw Funds</Text>
-        </TouchableOpacity>
+        <AppButton
+          label="Withdraw Funds"
+          onPress={handleWithdraw}
+          variant="primary"
+          icon={<ArrowUpRight size={20} color="#fff" />}
+          fullWidth
+          style={{ marginTop: 20 }}
+        />
       </ScrollView>
 
       {showNetworkPicker && (
@@ -175,6 +178,16 @@ export default function WithdrawScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
       )}
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Withdrawal Initiated"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }

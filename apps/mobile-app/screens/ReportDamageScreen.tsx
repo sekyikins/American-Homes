@@ -5,6 +5,8 @@ import { useMockData } from '../context/MockDataContext';
 import { Hammer, ChevronDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportDamage'>;
 
@@ -23,6 +25,8 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
 
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [showSerialPicker, setShowSerialPicker] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const selectedProduct = products.find(p => p.id === productId);
 
@@ -48,11 +52,8 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
 
     setSerialNumber('');
     setDescription('');
-
-    navigation.navigate('ReportSuccess', {
-      title: 'Damage Logged',
-      message: `Damage report logged. Product unit marked as damaged and inventory level adjusted.`,
-    });
+    setSuccessMsg(`Damage report logged. Product unit marked as damaged and inventory level adjusted.`);
+    setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -92,14 +93,6 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
       height: 100,
       textAlignVertical: 'top',
     },
-    submitBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
-      flexDirection: 'row',
-      gap: 8,
-      backgroundColor: colors.error,
-    },
-    submitBtnText: { ...commonStyles.buttonText },
     modalOverlay: {
       position: 'absolute',
       top: 0,
@@ -187,10 +180,14 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
-          <Hammer size={20} color="#fff" />
-          <Text style={styles.submitBtnText}>Submit Damage Report</Text>
-        </TouchableOpacity>
+        <AppButton
+          label="Submit Damage Report"
+          onPress={handleSubmit}
+          variant="primary"
+          icon={<Hammer size={20} color="#fff" />}
+          fullWidth
+          style={{ marginTop: 20, backgroundColor: colors.error, borderColor: colors.error }}
+        />
       </ScrollView>
 
       {/* Product Modal */}
@@ -243,6 +240,16 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
           </View>
         </TouchableOpacity>
       )}
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Damage Logged"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }

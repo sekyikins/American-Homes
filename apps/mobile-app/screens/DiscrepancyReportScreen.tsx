@@ -5,6 +5,8 @@ import { useMockData } from '../context/MockDataContext';
 import { FileSpreadsheet, ChevronDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DiscrepancyReport'>;
 
@@ -18,6 +20,8 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
   const [actualQty, setActualQty] = useState('');
   const [notes, setNotes] = useState('');
   const [showPicker, setShowPicker] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const selectedProduct = products.find(p => p.id === productId);
 
@@ -41,11 +45,8 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
     setExpectedQty('');
     setActualQty('');
     setNotes('');
-    
-    navigation.navigate('ReportSuccess', {
-      title: 'Discrepancy Logged',
-      message: 'Your discrepancy report has been logged and inventory adjustments applied successfully.',
-    });
+    setSuccessMsg('Your discrepancy report has been logged and inventory adjustments applied successfully.');
+    setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -69,13 +70,6 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
       height: 100,
       textAlignVertical: 'top',
     },
-    submitBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
-      flexDirection: 'row',
-      gap: 8,
-    },
-    submitBtnText: { ...commonStyles.buttonText },
     modalOverlay: {
       position: 'absolute',
       top: 0,
@@ -157,10 +151,14 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
-          <FileSpreadsheet size={20} color="#fff" />
-          <Text style={styles.submitBtnText}>Submit Discrepancy Report</Text>
-        </TouchableOpacity>
+        <AppButton
+          label="Submit Discrepancy Report"
+          onPress={handleSubmit}
+          variant="primary"
+          icon={<FileSpreadsheet size={20} color="#fff" />}
+          fullWidth
+          style={{ marginTop: 20 }}
+        />
       </ScrollView>
 
       {showPicker && (
@@ -188,6 +186,16 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
           </View>
         </TouchableOpacity>
       )}
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Discrepancy Logged"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }

@@ -5,6 +5,8 @@ import { useMockData } from '../context/MockDataContext';
 import { CheckCircle, Plus, Minus } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InventoryCountStep2'>;
 
@@ -27,6 +29,8 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
 
   // State keeping track of counts: record of productId -> number
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     const initialCounts: Record<string, number> = {};
@@ -68,10 +72,8 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
       }
     });
 
-    navigation.navigate('ReportSuccess', {
-      title: 'Cycle Count Complete',
-      message: `Audit cycle count submitted. Logged ${countMismatches} inventory discrepancies and updated system records.`,
-    });
+    setSuccessMsg(`Audit cycle count submitted. Logged ${countMismatches} inventory discrepancies and updated system records.`);
+    setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -114,12 +116,6 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
       fontWeight: '700',
     },
     footer: { padding: 16, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
-    finishBtn: {
-      ...commonStyles.button,
-      flexDirection: 'row',
-      gap: 8,
-    },
-    finishBtnText: { ...commonStyles.buttonText },
   });
 
   return (
@@ -167,12 +163,25 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
         />
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.finishBtn} onPress={handleFinishCount} activeOpacity={0.8}>
-            <CheckCircle size={18} color="#fff" />
-            <Text style={styles.finishBtnText}>Submit Audit Count</Text>
-          </TouchableOpacity>
+          <AppButton
+            label="Submit Audit Count"
+            onPress={handleFinishCount}
+            variant="primary"
+            icon={<CheckCircle size={18} color="#fff" />}
+            fullWidth
+          />
         </View>
       </View>
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Cycle Count Complete"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.navigate('Main', { screen: 'HomeTab' });
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

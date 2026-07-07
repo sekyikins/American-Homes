@@ -9,11 +9,13 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { useTheme } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { useMockData } from '../context/MockDataContext';
+import EmptyState from '../components/EmptyState';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -28,6 +30,7 @@ type Customer = {
 export default function CustomersScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const mockData = useMockData();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -35,27 +38,43 @@ export default function CustomersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const loadMockCustomers = () => {
+    setCustomers(mockData.customers);
+  };
+
   const fetchCustomers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('customers')
-      .select('id, name, phone, address, credit_accounts ( total_debt )')
-      .order('name', { ascending: true });
-
-    if (error) console.warn('Supabase error (customers):', error.message);
-
-    if (data) {
-      setCustomers(
-        data.map(c => ({
-          id: c.id,
-          name: c.name || 'Unknown',
-          phone: c.phone || '',
-          address: c.address || '',
-          total_debt: Number((c.credit_accounts as any)?.[0]?.total_debt || 0),
-        }))
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('customers')
+          .select('id, name, phone, address, credit_accounts ( total_debt )')
+          .order('name', { ascending: true })
       );
+
+      if (error) {
+        console.warn('Supabase error (customers):', error.message);
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        setCustomers(
+          data.map(c => ({
+            id: c.id,
+            name: c.name || 'Unknown',
+            phone: c.phone || '',
+            address: c.address || '',
+            total_debt: Number((c.credit_accounts as any)?.[0]?.total_debt || 0),
+          }))
+        );
+      } else {
+        loadMockCustomers();
+      }
+    } catch (e) {
+      loadMockCustomers();
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -158,6 +177,7 @@ export default function CustomersScreen() {
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -167,11 +187,10 @@ export default function CustomersScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>
-                {search ? `No customers matching "${search}"` : 'No customers registered yet'}
-              </Text>
-            </View>
+            <EmptyState
+              title="No customers found"
+              message={search ? `No customers matching "${search}"` : 'No customers registered yet'}
+            />
           }
         />
       )}
@@ -258,7 +277,4 @@ const createStyles = (colors: any) =>
     debtText: { fontSize: 12, fontWeight: '700' },
     clearBadge: { borderRadius: 7, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 5 },
     clearText: { fontSize: 12, fontWeight: '700' },
-
-    empty: { paddingTop: 60, alignItems: 'center' },
-    emptyText: { color: colors.textDim, fontSize: 14, textAlign: 'center' },
   });

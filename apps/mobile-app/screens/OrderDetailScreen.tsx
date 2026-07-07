@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { FileText } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import StatusBadge from '../components/StatusBadge';
+import SectionHeader from '../components/SectionHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetail'>;
 
@@ -26,16 +28,22 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
       setLoading(true);
       try {
         // Try fetching from Supabase first
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .select('id, total_amount, payment_status, created_at, customer_id, customers ( name, phone )')
-          .eq('id', orderId)
-          .single();
+        const [orderRes, itemsRes] = await withTimeout(
+          Promise.all([
+            supabase
+              .from('orders')
+              .select('id, total_amount, payment_status, created_at, customer_id, customers ( name, phone )')
+              .eq('id', orderId)
+              .single(),
+            supabase
+              .from('order_items')
+              .select('id, quantity, unit_price, products ( name )')
+              .eq('order_id', orderId)
+          ])
+        );
 
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('order_items')
-          .select('id, quantity, unit_price, products ( name )')
-          .eq('order_id', orderId);
+        const orderData = orderRes.data;
+        const itemsData = itemsRes.data;
 
         if (active) {
           if (orderData) {
@@ -49,7 +57,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
               customer_id: orderData.customer_id,
             });
             if (itemsData) {
-              setItems(itemsData.map(item => ({
+              setItems(itemsData.map((item: any) => ({
                 id: item.id,
                 name: item.products?.name || 'Unknown Product',
                 quantity: item.quantity,
@@ -57,35 +65,38 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
               })));
             }
           } else {
-            // Fallback to Mock Data
-            const mockOrder = orders.find(o => o.id === orderId);
-            if (mockOrder) {
-              const customer = mockOrder.customer_id ? customers.find(c => c.id === mockOrder.customer_id) : null;
-              setOrder({
-                id: mockOrder.id,
-                total_amount: mockOrder.total_amount,
-                payment_status: mockOrder.payment_status,
-                created_at: mockOrder.created_at,
-                customer_name: customer?.name || 'Walk-in Customer',
-                customer_phone: customer?.phone || '',
-                customer_id: mockOrder.customer_id,
-              });
-
-              const mockItems = orderItems.filter(oi => oi.order_id === orderId);
-              setItems(mockItems.map(item => {
-                const prod = products.find(p => p.id === item.product_id);
-                return {
-                  id: item.id,
-                  name: prod?.name || 'Unknown Product',
-                  quantity: item.quantity,
-                  unit_price: item.unit_price,
-                };
-              }));
-            }
+            throw new Error('Order not found');
           }
         }
       } catch (err) {
         console.warn('Error fetching order details:', err);
+        // Fallback to Mock Data
+        if (active) {
+          const mockOrder = orders.find(o => o.id === orderId);
+          if (mockOrder) {
+            const customer = mockOrder.customer_id ? customers.find(c => c.id === mockOrder.customer_id) : null;
+            setOrder({
+              id: mockOrder.id,
+              total_amount: mockOrder.total_amount,
+              payment_status: mockOrder.payment_status,
+              created_at: mockOrder.created_at,
+              customer_name: customer?.name || 'Walk-in Customer',
+              customer_phone: customer?.phone || '',
+              customer_id: mockOrder.customer_id,
+            });
+
+            const mockItems = orderItems.filter(oi => oi.order_id === orderId);
+            setItems(mockItems.map(item => {
+              const prod = products.find(p => p.id === item.product_id);
+              return {
+                id: item.id,
+                name: prod?.name || 'Unknown Product',
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+              };
+            }));
+          }
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -126,21 +137,6 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
     return `ORD-${year}-${id.slice(0, 4).toUpperCase()}`;
   };
 
-  const getStatusBadgeStyle = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return { bg: colors.successBg, border: colors.successBorder, text: colors.successText, label: 'Paid' };
-      case 'partial':
-        return { bg: colors.pendingBg, border: colors.pendingBorder, text: colors.pendingText, label: 'Partial' };
-      case 'credit':
-        return { bg: colors.errorBg, border: colors.errorBorder, text: colors.errorText, label: 'Credit' };
-      default:
-        return { bg: colors.border, border: colors.borderLight, text: colors.textDim, label: 'Pending' };
-    }
-  };
-
-  const badge = getStatusBadgeStyle(order.payment_status);
-
   // Paid and Balance calculation logic
   let paidAmount = 0;
   if (order.payment_status === 'paid') {
@@ -159,9 +155,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         {/* Order ID & Status Badge */}
         <View style={styles.orderHeaderRow}>
           <Text style={styles.orderTitle}>{getOrderCode(order.id, order.created_at)}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-            <Text style={[styles.statusText, { color: badge.text }]}>{badge.label}</Text>
-          </View>
+          <StatusBadge status={order.payment_status} />
         </View>
 
         {/* Details Card */}
@@ -200,7 +194,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Items List */}
-        <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+        <SectionHeader title={`Items (${items.length})`} variant="compact" />
         <View style={styles.itemsCard}>
           {items.map((item, index) => (
             <View
@@ -250,17 +244,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontWeight: '700',
       color: colors.text,
     },
-    statusBadge: {
-      ...cs.badge,
-      borderRadius: RADIUS.sm,
-      paddingHorizontal: SPACING.sm,
-      paddingVertical: 3,
-    },
-    statusText: {
-      ...cs.badgeText,
-      fontSize: FONT_SIZE.xs,
-      textTransform: 'uppercase',
-    },
     detailsCard: {
       ...cs.card,
       marginBottom: SPACING.lg,
@@ -286,13 +269,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontSize: FONT_SIZE.md,
       fontWeight: '700',
       color: colors.primary,
-    },
-    sectionTitle: {
-      ...typo.sectionTitleCompact,
-      fontSize: FONT_SIZE.lg,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: SPACING.sm,
     },
     itemsCard: {
       ...cs.card,

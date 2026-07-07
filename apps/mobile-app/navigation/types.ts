@@ -9,6 +9,7 @@ export type RootStackParamList = {
   Wallet: undefined;
   Shipments: undefined;
   AllTransactions: undefined;
+  AgentWallet: { agentId: string };
   CustomerDetail: { customerId: string };
   DiscrepancyReport: { productId?: string };
   InventoryCount: undefined;
@@ -21,8 +22,8 @@ export type RootStackParamList = {
   Reports: undefined;
   ShipmentDetail: { shipmentId: string };
   StockAdjust: { productId?: string };
-  TasksAndAlerts: undefined;
-  TransactionDetail: { transactionId: string };
+  TasksAndAlerts: { initialTab?: 'tasks' | 'alerts' } | undefined;
+  TransactionDetail: {transactionId: string};
   ChangePassword: undefined;
   Notifications: undefined;
   NotificationSettings: undefined;

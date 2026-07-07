@@ -23,6 +23,9 @@ import {
   FileText,
   RefreshCw,
 } from 'lucide-react-native';
+import SectionHeader from '../components/SectionHeader';
+import StatusBadge from '../components/StatusBadge';
+import EmptyState from '../components/EmptyState';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -32,7 +35,7 @@ const INDIGO_END = '#6366f1';
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { tasks, toggleTaskStatus, shipments, notifications, walletBalance, customers, orders } = useMockData();
+  const { tasks, toggleTaskStatus, shipments, notifications, currentUser, customers, orders, offlineActivities } = useMockData();
   const { colors, typography, commonStyles } = useTheme();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -40,28 +43,19 @@ export default function HomeScreen() {
   const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
   const alertNotification = notifications.find(n => n.category === 'inventory' && !n.read);
-  const alertText =
-    (alertNotification ? alertNotification.body : null) ||
-    'Apple AirPods Pro stock is low (8 units). Reorder required.';
 
   const activeShipments = shipments
     .filter(s => s.status === 'in_transit' || s.status === 'pending')
     .slice(0, 2);
 
   const visibleTasks = tasks.slice(0, 3);
-  const displayBalance = `$${Math.round(walletBalance).toLocaleString()}`;
+  const displayBalance = `$${currentUser?.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   const onRefresh = async () => {
     setRefreshing(true);
     // Simulating refresh since user load is now in App.tsx
     await new Promise(resolve => setTimeout(resolve, 800));
     setRefreshing(false);
-  };
-
-  const getStatusBadge = (status: string) => {
-    if (status === 'in_transit') return { label: 'In Transit', color: colors.primary, bg: colors.primary + '20', border: colors.primary + '40' };
-    if (status === 'received') return { label: 'Received', color: colors.success, bg: colors.successBg, border: colors.successBorder };
-    return { label: 'Pending', color: colors.pending, bg: colors.pendingBg, border: colors.pendingBorder };
   };
 
   return (
@@ -101,24 +95,30 @@ export default function HomeScreen() {
         </LinearGradient>
 
         {/* Low Stock Alert Banner */}
-        <TouchableOpacity
-          style={styles.alertBanner}
-          onPress={() => navigation.navigate('TasksAndAlerts')}
-          activeOpacity={0.8}
-        >
-          <TriangleAlert size={14} color={colors.error} />
-          <Text style={styles.alertText}>{alertText}</Text>
-          <ChevronRight size={12} color={colors.error} />
-        </TouchableOpacity>
+        {alertNotification && (
+          <TouchableOpacity
+            style={styles.alertBanner}
+            onPress={() => navigation.navigate('TasksAndAlerts', { initialTab: 'alerts' })}
+            activeOpacity={0.8}
+          >
+            <View style={{marginTop: 2}}>
+              <TriangleAlert size={14} color={colors.error} />
+            </View>
+            <Text style={styles.alertText}>{alertNotification.body}</Text>
+            <View style={{ height: '100%', justifyContent: 'center'}}>
+              <ChevronRight size={12} color={colors.error} />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Assigned Tasks */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitleCompact}>Assigned Tasks</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('TasksAndAlerts')} activeOpacity={0.7}>
-              <Text style={styles.viewAll}>View All</Text>
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title="Assigned Tasks"
+            variant="compact"
+            viewAllLabel="VIEW ALL"
+            onViewAll={() => navigation.navigate('TasksAndAlerts')}
+          />
           <View style={styles.taskList}>
             {visibleTasks.map((task) => {
               const done = task.status === 'completed';
@@ -141,17 +141,16 @@ export default function HomeScreen() {
               );
             })}
             {visibleTasks.length === 0 && (
-              <Text style={styles.emptyText}>No tasks assigned</Text>
+              <EmptyState message="No tasks assigned" />
             )}
           </View>
         </View>
 
         {/* Shipment Status */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitleCompact}>Shipment Status</Text>
+          <SectionHeader title="Shipment Status" variant="compact" />
           <View style={styles.shipmentList}>
             {activeShipments.map((s) => {
-              const badge = getStatusBadge(s.status);
               return (
                 <TouchableOpacity
                   key={s.id}
@@ -161,9 +160,7 @@ export default function HomeScreen() {
                 >
                   <View style={styles.shipmentTopRow}>
                     <Text style={styles.shipmentCode}>{s.shipment_code}</Text>
-                    <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-                      <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                    </View>
+                    <StatusBadge status={s.status} />
                   </View>
                   <Text style={styles.shipmentSupplier}>{s.supplier_name || s.supplier_country}</Text>
                   {s.arrival_date != null && (
@@ -173,16 +170,14 @@ export default function HomeScreen() {
               );
             })}
             {activeShipments.length === 0 && (
-              <View style={styles.shipmentCard}>
-                <Text style={styles.emptyText}>No active shipments</Text>
-              </View>
+              <EmptyState message="No active shipments" style={{ paddingVertical: SPACING.md }} />
             )}
           </View>
         </View>
 
         {/* Quick Access Grid */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitleCompact}>Quick Access</Text>
+          <SectionHeader title="Quick Access" variant="compact" />
           <View style={styles.quickGrid}>
             <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Customers')} activeOpacity={0.8}>
               <View style={styles.quickIconBox}><Users size={15} color={colors.primary} /></View>
@@ -198,7 +193,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('SyncCenter')} activeOpacity={0.8}>
               <View style={styles.quickIconBox}><RefreshCw size={15} color={colors.primary} /></View>
-              <View><Text style={styles.quickLabel}>Sync Center</Text><Text style={styles.quickSub}>3 pending</Text></View>
+              <View>
+                <Text style={styles.quickLabel}>Sync Center</Text>
+                <Text style={styles.quickSub}>
+                  {offlineActivities.length === 0 ? 'All synced' : `${offlineActivities.length} pending`}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -223,14 +223,11 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   walletBtnText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: '#ffffff' },
 
   // ── Alert Banner ────────────────────────────────────────────────────────────
-  alertBanner: { ...cs.alertBanner, marginBottom: 18 },
+  alertBanner: { ...cs.alertBanner, marginBottom: 18, maxHeight: 90 },
   alertText: { ...cs.alertText },
 
   // ── Sections ────────────────────────────────────────────────────────────────
   section: { marginBottom: 18 },
-  sectionHeader: { ...cs.sectionHeader },
-  sectionTitleCompact: { ...typo.sectionTitleCompact },
-  viewAll: { ...typo.viewAllLink },
 
   // ── Tasks ───────────────────────────────────────────────────────────────────
   taskList: { gap: SPACING.sm },
@@ -245,8 +242,6 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   shipmentCode: { ...typo.mono },
   shipmentSupplier: { fontSize: FONT_SIZE.body, fontWeight: '600', color: colors.text, marginTop: SPACING.xs },
   shipmentEta: { fontSize: FONT_SIZE.sm, color: colors.primary, marginTop: 3 },
-  badge: { ...cs.badge },
-  badgeText: { ...cs.badgeText },
 
   // ── Quick Access Grid ───────────────────────────────────────────────────────
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
@@ -254,7 +249,4 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   quickIconBox: { ...cs.quickIconBox },
   quickLabel: { fontSize: FONT_SIZE.md, fontWeight: '600', color: colors.text },
   quickSub: { fontSize: FONT_SIZE.sm, color: colors.primary, marginTop: 1 },
-
-  // ── Empty State ─────────────────────────────────────────────────────────────
-  emptyText: { ...typo.emptyBody, paddingVertical: SPACING.sm },
 });

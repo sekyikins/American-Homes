@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,48 +15,22 @@ import {
 } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { useMockData } from '../context/MockDataContext';
+import SectionHeader from '../components/SectionHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SyncCenter'>;
 
-interface OfflineActivity {
-  id: string;
-  title: string;
-  description: string;
-  timestamp: string;
-  type: 'stock' | 'order' | 'scan';
-}
-
-const INITIAL_ACTIVITIES: OfflineActivity[] = [
-  {
-    id: '1',
-    title: 'Stock Adjustment',
-    description: 'Added 5 units of AirPods Pro to inventory',
-    timestamp: '10:24 AM',
-    type: 'stock',
-  },
-  {
-    id: '2',
-    title: 'Scan Serial Number',
-    description: 'Registered serial number SN-12345 to batch B-987',
-    timestamp: '10:18 AM',
-    type: 'scan',
-  },
-  {
-    id: '3',
-    title: 'Order Status Update',
-    description: 'Marked ORD-2024-1205 as "shipped"',
-    timestamp: '10:05 AM',
-    type: 'order',
-  },
-];
-
 export default function SyncCenterScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const { offlineActivities, syncActivities, resetActivities } = useMockData();
 
-  const [activities, setActivities] = useState<OfflineActivity[]>(INITIAL_ACTIVITIES);
-  const [selectedIds, setSelectedIds] = useState<string[]>(INITIAL_ACTIVITIES.map(a => a.id));
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [synced, setSynced] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedIds(offlineActivities.map(a => a.id));
+  }, [offlineActivities]);
 
   const toggleSelect = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -67,24 +41,23 @@ export default function SyncCenterScreen({ navigation }: Props) {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === activities.length) {
+    if (selectedIds.length === offlineActivities.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(activities.map(a => a.id));
+      setSelectedIds(offlineActivities.map(a => a.id));
     }
   };
 
   const handleSyncNow = () => {
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    setActivities([]);
+    syncActivities(selectedIds);
     setSelectedIds([]);
     setSynced(true);
     setLastSyncTime(now);
   };
 
   const handleResync = () => {
-    setActivities(INITIAL_ACTIVITIES);
-    setSelectedIds(INITIAL_ACTIVITIES.map(a => a.id));
+    resetActivities();
     setSynced(false);
     setLastSyncTime(null);
   };
@@ -149,14 +122,6 @@ export default function SyncCenterScreen({ navigation }: Props) {
       fontSize: FONT_SIZE.body,
       color: colors.textDim,
     },
-    sectionTitle: {
-      fontSize: FONT_SIZE.sm,
-      fontWeight: '700',
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      marginBottom: SPACING.md,
-    },
     selectAllRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -216,10 +181,10 @@ export default function SyncCenterScreen({ navigation }: Props) {
   });
 
   // ── All Synced state ───────────────────────────────────────────────────────
-  if (synced) {
+  if (synced && offlineActivities.length === 0) {
     return (
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.syncedBanner}>
             <CheckCircle size={22} color={colors.successText} />
             <View>
@@ -242,30 +207,32 @@ export default function SyncCenterScreen({ navigation }: Props) {
   // ── Pending Activities state ───────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Summary */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Offline Activities</Text>
           <Text style={styles.summaryText}>
-            {activities.length} total · {selectedIds.length} selected
+            {offlineActivities.length} total · {selectedIds.length} selected
           </Text>
         </View>
 
         {/* Select All */}
-        <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.8} style={styles.selectAllRow}>
-          {selectedIds.length === activities.length ? (
-            <CheckSquare size={20} color={colors.primary} />
-          ) : (
-            <Square size={20} color={colors.textDim} />
-          )}
-          <Text style={styles.selectAllText}>
-            {selectedIds.length === activities.length ? 'Deselect All' : 'Select All'}
-          </Text>
-        </TouchableOpacity>
+        {offlineActivities.length > 0 && (
+          <TouchableOpacity onPress={toggleSelectAll} activeOpacity={0.8} style={styles.selectAllRow}>
+            {selectedIds.length === offlineActivities.length ? (
+              <CheckSquare size={20} color={colors.primary} />
+            ) : (
+              <Square size={20} color={colors.textDim} />
+            )}
+            <Text style={styles.selectAllText}>
+              {selectedIds.length === offlineActivities.length ? 'Deselect All' : 'Select All'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Activities */}
-        <Text style={styles.sectionTitle}>Pending Changes</Text>
-        {activities.map(activity => (
+        <SectionHeader title="Pending Changes" variant="uppercase" />
+        {offlineActivities.map(activity => (
           <TouchableOpacity
             key={activity.id}
             onPress={() => toggleSelect(activity.id)}
@@ -287,16 +254,27 @@ export default function SyncCenterScreen({ navigation }: Props) {
           </TouchableOpacity>
         ))}
 
+        {offlineActivities.length === 0 && (
+          <View style={styles.syncedBanner}>
+            <CheckCircle size={22} color={colors.successText} />
+            <View>
+              <Text style={styles.syncedBannerText}>All data synced</Text>
+            </View>
+          </View>
+        )}
+
         {/* Sync Button */}
-        <TouchableOpacity
-          style={[styles.syncBtn, selectedIds.length === 0 && styles.syncBtnDisabled]}
-          onPress={handleSyncNow}
-          activeOpacity={0.8}
-          disabled={selectedIds.length === 0}
-        >
-          <RefreshCw size={20} color="#fff" />
-          <Text style={styles.syncBtnText}>Sync Now ({selectedIds.length})</Text>
-        </TouchableOpacity>
+        {offlineActivities.length > 0 && (
+          <TouchableOpacity
+            style={[styles.syncBtn, selectedIds.length === 0 && styles.syncBtnDisabled]}
+            onPress={handleSyncNow}
+            activeOpacity={0.8}
+            disabled={selectedIds.length === 0}
+          >
+            <RefreshCw size={20} color="#fff" />
+            <Text style={styles.syncBtnText}>Sync Now ({selectedIds.length})</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );

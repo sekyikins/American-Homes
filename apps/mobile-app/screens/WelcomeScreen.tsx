@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useTheme } from '../styles/theme';
+import { Image } from 'react-native';
+import logo from "../assets/icon.png";
 
 const { width } = Dimensions.get('window');
 
@@ -22,20 +24,18 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
       alignItems: 'center',
     },
     logoContainer: {
-      marginBottom: 40,
+      margin: 0,
     },
     logo: {
-      width: 100,
-      height: 100,
+      width: 200,
+      height: 200,
       borderRadius: 20,
-      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    logoText: {
-      fontSize: 48,
-      fontWeight: '800',
-      color: '#fff',
+    logoImage: {
+      width: 250,
+      height: 250,
     },
     title: {
       ...typography.title,
@@ -67,7 +67,11 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
       <View style={styles.content}>
         <View style={styles.logoContainer}>
           <View style={styles.logo}>
-            <Text style={styles.logoText}>A</Text>
+            <Image
+              source={logo}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         </View>
         <Text style={styles.title}>American Home Ventures</Text>

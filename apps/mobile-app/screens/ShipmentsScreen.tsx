@@ -8,12 +8,14 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMockData } from '../context/MockDataContext';
+import StatusBadge from '../components/StatusBadge';
+import EmptyState from '../components/EmptyState';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -41,13 +43,15 @@ export default function ShipmentsScreen() {
 
   const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
 
-  const fetchShipments = async () => {
-    setLoading(true);
+  const fetchShipments = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('shipments')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await withTimeout(
+        supabase
+          .from('shipments')
+          .select('*')
+          .order('created_at', { ascending: false })
+      );
 
       if (error) {
         console.warn('Supabase error (shipments):', error.message);
@@ -63,7 +67,7 @@ export default function ShipmentsScreen() {
       console.warn('Error fetching shipments:', e);
       setShipments(mockData.shipments);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -73,19 +77,8 @@ export default function ShipmentsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchShipments();
+    await fetchShipments(true);
     setRefreshing(false);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'received':
-        return { label: 'Received', color: colors.success, bg: colors.successBg, border: colors.successBorder };
-      case 'in_transit':
-        return { label: 'In Transit', color: colors.primary, bg: colors.primary + '20', border: colors.primary + '50' };
-      default:
-        return { label: 'Pending', color: colors.pending, bg: colors.pendingBg, border: colors.pendingBorder };
-    }
   };
 
   const formatArrivalDate = (dateStr: string | null) => {
@@ -94,8 +87,6 @@ export default function ShipmentsScreen() {
   };
 
   const renderItem = ({ item }: { item: Shipment }) => {
-    const badge = getStatusBadge(item.status);
-
     return (
       <TouchableOpacity
         style={styles.card}
@@ -105,9 +96,7 @@ export default function ShipmentsScreen() {
         {/* Top Row: Code & Status */}
         <View style={styles.cardTopRow}>
           <Text style={styles.shipmentCode}>{item.shipment_code}</Text>
-          <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-            <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-          </View>
+          <StatusBadge status={item.status} />
         </View>
 
         {/* Middle: Supplier Name */}
@@ -146,6 +135,7 @@ export default function ShipmentsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -155,9 +145,7 @@ export default function ShipmentsScreen() {
           />
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No shipments recorded yet</Text>
-          </View>
+          <EmptyState title="No shipments recorded" message="No shipments recorded yet." />
         }
       />
     </View>
@@ -187,13 +175,6 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   shipmentCode: {
     ...typo.mono,
   },
-  badge: {
-    ...cs.badge,
-  },
-  badgeText: {
-    ...cs.badgeText,
-    textTransform: 'capitalize',
-  },
   supplierName: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '700',
@@ -217,11 +198,5 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   bottomDetailText: {
     fontSize: FONT_SIZE.sm,
     color: colors.textMuted,
-  },
-  empty: {
-    ...cs.emptyContainer,
-  },
-  emptyText: {
-    ...cs.emptyText,
   },
 });

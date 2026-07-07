@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -8,9 +9,12 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
+import SectionHeader from '../components/SectionHeader';
+import EmptyState from '../components/EmptyState';
+import AppButton from '../components/AppButton';
 
 type Agent = {
   id: string;
@@ -31,104 +35,88 @@ type Transaction = {
 };
 
 export default function WalletScreen() {
+  const navigation = useNavigation<any>();
   const { colors, commonStyles, typography } = useTheme();
   const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
   const mockData = useMockData();
+  const { currentUser } = mockData;
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchWallets = async () => {
-    setLoading(true);
+  const fetchWallets = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
+
+    // Derive fallback agents from the single source of truth in MockDataContext
+    const mockAgents: Agent[] = mockData.users
+      .filter(u => ['admin', 'manager', 'agent'].includes(u.role))
+      .map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        commission_type: u.commission_type || 'flat',
+        commission_rate: u.commission_rate || 0,
+        balance: u.balance,
+      }));
+
     try {
-      const [agentsRes, txRes] = await Promise.all([
-        supabase
-          .from('users')
-          .select(
-            'id, name, email, role, commission_type, commission_rate, wallets ( balance )'
-          )
-          .in('role', ['admin', 'manager', 'agent'])
-          .order('name'),
-        supabase
-          .from('wallet_transactions')
-          .select('id, amount, type, reason, created_at')
-          .order('created_at', { ascending: false })
-          .limit(20),
-      ]);
+      const [agentsRes, txRes] = await withTimeout(
+        Promise.all([
+          supabase
+            .from('users')
+            .select(
+              'id, name, email, role, commission_type, commission_rate, wallets ( balance )'
+            )
+            .in('role', ['admin', 'manager', 'agent'])
+            .order('name'),
+          supabase
+            .from('wallet_transactions')
+            .select('id, amount, type, reason, created_at')
+            .order('created_at', { ascending: false })
+            .limit(20),
+        ])
+      );
 
       if (agentsRes.error)
         console.warn('Supabase error (agents/wallets):', agentsRes.error.message);
       if (txRes.error)
         console.warn('Supabase error (wallet_transactions):', txRes.error.message);
 
-      let fetchedAgents: Agent[] = [];
-      if (agentsRes.data && agentsRes.data.length > 0) {
-        fetchedAgents = agentsRes.data.map(a => ({
-          id: a.id,
-          name: a.name || 'Unknown',
-          email: a.email || '',
-          role: a.role,
-          commission_type: a.commission_type || 'flat',
-          commission_rate: Number(a.commission_rate) || 0,
-          balance: Number((a.wallets as any)?.[0]?.balance) || 0,
-        }));
-      } else {
-        fetchedAgents = [
-          {
-            id: 'u-1',
-            name: 'Kwame Asante',
-            email: 'kwame@americanhomeventures.com',
-            role: 'agent',
-            commission_type: 'percentage',
-            commission_rate: 0.05,
-            balance: mockData.walletBalance,
-          },
-          ...mockData.customers.slice(0, 2).map((c, i) => ({
-            id: c.id,
-            name: c.name,
-            email: `${c.name.toLowerCase().replace(' ', '')}@gmail.com`,
-            role: 'agent',
-            commission_type: 'flat',
-            commission_rate: 25.00,
-            balance: i === 0 ? 320.00 : 0.00,
-          }))
-        ];
-      }
+      const fetchedAgents: Agent[] =
+        agentsRes.data && agentsRes.data.length > 0
+          ? agentsRes.data.map(a => ({
+              id: a.id,
+              name: a.name || 'Unknown',
+              email: a.email || '',
+              role: a.role,
+              commission_type: a.commission_type || 'flat',
+              commission_rate: Number(a.commission_rate) || 0,
+              balance: Number((a.wallets as any)?.[0]?.balance) || 0,
+            }))
+          : mockAgents;
 
-      let fetchedTransactions: Transaction[] = [];
-      if (txRes.data && txRes.data.length > 0) {
-        fetchedTransactions = txRes.data as Transaction[];
-      } else {
-        fetchedTransactions = mockData.walletTransactions.map(tx => ({
-          id: tx.id,
-          amount: tx.amount,
-          type: tx.type,
-          reason: tx.reason,
-          created_at: tx.created_at,
-        }));
-      }
+      const fetchedTransactions: Transaction[] =
+        txRes.data && txRes.data.length > 0
+          ? (txRes.data as Transaction[])
+          : mockData.walletTransactions.map(tx => ({
+              id: tx.id,
+              amount: tx.amount,
+              type: tx.type,
+              reason: tx.reason,
+              created_at: tx.created_at,
+            }));
 
       setAgents(fetchedAgents);
       setTransactions(fetchedTransactions);
     } catch (e) {
       console.warn('Error fetching wallet data:', e);
-      // Fallback
-      setAgents([
-        {
-          id: 'u-1',
-          name: 'Kwame Asante',
-          email: 'kwame@americanhomeventures.com',
-          role: 'agent',
-          commission_type: 'percentage',
-          commission_rate: 0.05,
-          balance: mockData.walletBalance,
-        }
-      ]);
+      setAgents(mockAgents);
       setTransactions(mockData.walletTransactions);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -138,11 +126,11 @@ export default function WalletScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchWallets();
+    await fetchWallets(true);
     setRefreshing(false);
   };
 
-  const totalBalance = agents.reduce((s, a) => s + a.balance, 0);
+  const myBalance = currentUser?.balance ?? 0;
 
   const commissionLabel = (a: Agent) => {
     if (a.commission_type === 'percentage')
@@ -178,20 +166,22 @@ export default function WalletScreen() {
       {/* Total balance banner stays static at top */}
       <View style={styles.staticHeader}>
         <View style={styles.banner}>
-          <Text style={styles.bannerLabel}>Available Balance</Text>
+          <Text style={styles.bannerLabel}>My Balance</Text>
           <Text style={styles.bannerValue}>
-            ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            ${myBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </Text>
-          <Text style={styles.bannerSub}>
-            {agents.length} registered wallet{agents.length !== 1 ? 's' : ''}
-          </Text>
-        <TouchableOpacity
-          style={styles.walletBtn}
-          onPress={() => navigation.navigate('Withdraw')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.walletBtnText}>Withdraw Funds</Text>
-        </TouchableOpacity>
+          {currentUser?.role === 'admin' && (
+            <Text style={styles.bannerSub}>
+              {agents.length} registered wallet{agents.length !== 1 ? 's' : ''}
+            </Text>
+          )}
+          <AppButton
+            label="Withdraw Funds"
+            onPress={() => navigation.navigate('Withdraw')}
+            variant="secondary"
+            style={{ backgroundColor: '#ffffff', borderColor: '#ffffff', marginTop: SPACING.md }}
+            fullWidth
+          />
         </View>
       </View>
 
@@ -199,6 +189,7 @@ export default function WalletScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -208,62 +199,62 @@ export default function WalletScreen() {
           />
         }
       >
-        {/* Agent wallet cards */}
-        <Text style={styles.sectionTitle}>Agent Wallets</Text>
+        {/* Agent wallet cards (Admin only) */}
+        {currentUser?.role === 'admin' && (
+          <>
+            <SectionHeader title="Agent Wallets" variant="compact" />
 
-        {agents.map(a => (
-          <View key={a.id} style={styles.agentCard}>
-            <View style={styles.agentLeft}>
-              <View style={[styles.avatarSmall, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={[styles.avatarTextSmall, { color: colors.primary }]}>
-                  {initials(a.name)}
-                </Text>
-              </View>
-              <View style={styles.agentInfo}>
-                <Text style={styles.agentName}>{a.name}</Text>
-                <Text style={styles.agentMeta}>
-                  {a.role.charAt(0).toUpperCase() + a.role.slice(1)} ·{' '}
-                  {commissionLabel(a)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.balanceBox}>
-              <Text style={styles.balanceVal}>
-                ${a.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </Text>
-              <Text style={styles.balanceLbl}>Balance</Text>
-            </View>
-          </View>
-        ))}
+            {agents.map(a => (
+              <TouchableOpacity key={a.id} style={styles.agentCard} activeOpacity={0.8} onPress={() => navigation.navigate('AgentWallet', { agentId: a.id })}>
+                <View style={styles.agentLeft}>
+                  <View style={[styles.avatarSmall, { backgroundColor: colors.primary + '20' }]}>
+                    <Text style={[styles.avatarTextSmall, { color: colors.primary }]}>
+                      {initials(a.name)}
+                    </Text>
+                  </View>
+                  <View style={styles.agentInfo}>
+                    <Text style={styles.agentName}>{a.name}</Text>
+                    <Text style={styles.agentMeta}>
+                      {a.role.charAt(0).toUpperCase() + a.role.slice(1)} ·{' '}
+                      {commissionLabel(a)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.balanceBox}>
+                  <Text style={styles.balanceVal}>
+                    ${a.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </Text>
+                  <Text style={styles.balanceLbl}>Balance</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
 
-        {agents.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No agents registered yet</Text>
-          </View>
+            {agents.length === 0 && (
+              <EmptyState message="No agents registered yet" />
+            )}
+          </>
         )}
 
         {/* Recent transactions */}
         {transactions.length > 0 && (
           <>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: SPACING.lg }}>
-              <Text style={[styles.sectionTitle]}>
-                Recent Transactions
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => navigation.navigate('AllTransactions')}
-              >
-                <Text style={[styles.sectionTitle, { color: colors.primary }]}>VIEW ALL</Text>
-              </TouchableOpacity>
-            </View>
+            <SectionHeader
+              title="Recent Transactions"
+              variant="compact"
+              onViewAll={() => navigation.navigate('AllTransactions')}
+              viewAllLabel="VIEW ALL"
+              style={{ marginTop: SPACING.lg }}
+            />
             <View style={styles.txCard}>
               {transactions.map((tx, idx) => (
-                <View
+                <TouchableOpacity
                   key={tx.id}
                   style={[
                     styles.txRow,
                     idx < transactions.length - 1 && styles.txDivider,
                   ]}
+                  onPress={() => navigation.navigate('TransactionDetail', { transactionId: tx.id })}
+                  activeOpacity={0.8}
                 >
                   <View
                     style={[
@@ -292,7 +283,7 @@ export default function WalletScreen() {
                       minimumFractionDigits: 2,
                     })}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           </>
@@ -340,10 +331,7 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       marginTop: SPACING.md,
       width: '100%',
     },
-  walletBtnText: { fontSize: FONT_SIZE.lg, fontWeight: '800', color: colors.primary },
-
-    // ── Section Title ─────────────────────────────────────────────────────────
-    sectionTitle: { ...typo.sectionTitleUppercase },
+    walletBtnText: { fontSize: FONT_SIZE.lg, fontWeight: '800', color: colors.primary },
 
     // ── Agent Cards ───────────────────────────────────────────────────────────
     agentCard: {
@@ -375,10 +363,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontVariant: ['tabular-nums'],
     },
     balanceLbl: { fontSize: FONT_SIZE.xs, color: colors.textDim, marginTop: 2 },
-
-    // ── Empty State ───────────────────────────────────────────────────────────
-    emptyContainer: { padding: 40, alignItems: 'center' },
-    emptyText: { ...cs.emptyText },
 
     // ── Transactions ──────────────────────────────────────────────────────────
     txCard: { ...cs.card },

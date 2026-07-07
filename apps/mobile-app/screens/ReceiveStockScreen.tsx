@@ -5,6 +5,8 @@ import { useMockData } from '../context/MockDataContext';
 import { PackagePlus, ChevronDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
+import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReceiveStock'>;
 
@@ -24,6 +26,8 @@ export default function ReceiveStockScreen({ route, navigation }: Props) {
   
   const [showShipmentPicker, setShowShipmentPicker] = useState(false);
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const selectedShipment = shipments.find(s => s.id === shipmentId);
   const selectedProduct = products.find(p => p.id === productId);
@@ -51,11 +55,8 @@ export default function ReceiveStockScreen({ route, navigation }: Props) {
 
     setQtyReceived('');
     setCostPrice('');
-
-    navigation.navigate('ReportSuccess', {
-      title: 'Stock Received',
-      message: `Stock successfully logged into inventory. Registered ${qty} units of ${selectedProduct?.name || 'product'} under batch.`,
-    });
+    setSuccessMsg(`Stock successfully logged into inventory. Registered ${qty} units of ${selectedProduct?.name || 'product'} under batch.`);
+    setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
@@ -74,13 +75,6 @@ export default function ReceiveStockScreen({ route, navigation }: Props) {
     },
     pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
     input: { ...commonStyles.input },
-    submitBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
-      flexDirection: 'row',
-      gap: 8,
-    },
-    submitBtnText: { ...commonStyles.buttonText },
     modalOverlay: {
       position: 'absolute',
       top: 0,
@@ -159,10 +153,14 @@ export default function ReceiveStockScreen({ route, navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleReceive} activeOpacity={0.8}>
-          <PackagePlus size={20} color="#fff" />
-          <Text style={styles.submitBtnText}>Confirm Reception</Text>
-        </TouchableOpacity>
+        <AppButton
+          label="Confirm Reception"
+          onPress={handleReceive}
+          variant="primary"
+          icon={<PackagePlus size={20} color="#fff" />}
+          fullWidth
+          style={{ marginTop: 20 }}
+        />
       </ScrollView>
 
       {/* Shipment Modal */}
@@ -214,6 +212,16 @@ export default function ReceiveStockScreen({ route, navigation }: Props) {
           </View>
         </TouchableOpacity>
       )}
+
+      <SuccessOverlay
+        visible={successVisible}
+        title="Stock Received"
+        message={successMsg}
+        onDone={() => {
+          setSuccessVisible(false);
+          navigation.goBack();
+        }}
+      />
     </View>
   );
 }
