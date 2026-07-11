@@ -268,7 +268,7 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     summaryRevenue: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.text },
 
     center: { ...cs.center },
-    list: { paddingHorizontal: 14, paddingBottom: 24, gap: 10 },
+    list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg, gap: SPACING.sm },
 
     orderCard: {
       flexDirection: 'row',
@@ -292,9 +292,8 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     orderCustomer: {
       fontSize: FONT_SIZE.lg,
       color: colors.textMuted,
-      marginTop: 3,
     },
-    orderDate: { ...typo.meta, marginTop: 2 },
+    orderDate: { ...typo.meta },
 
     orderRight: { alignItems: 'flex-end', gap: SPACING.sm },
     orderTotal: {

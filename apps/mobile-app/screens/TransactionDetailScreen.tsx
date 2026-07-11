@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,15 +17,15 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16 },
+    content: { padding: SPACING.lg },
     amountCard: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 24,
+      padding: SPACING.lg,
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: SPACING.lg,
     },
     typeIcon: {
       width: 48,
@@ -33,34 +33,34 @@ export default function TransactionDetailScreen({ route, navigation }: Props) {
       borderRadius: 24,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 12,
+      marginBottom: SPACING.md,
     },
-    amount: { fontSize: 28, fontWeight: '800' },
-    status: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', marginTop: 6 },
+    amount: { fontSize: FONT_SIZE.hero, fontWeight: '800' },
+    status: { fontSize: FONT_SIZE.body, fontWeight: '700', textTransform: 'uppercase', marginTop: SPACING.xs },
     card: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 16,
-      marginBottom: 16,
+      padding: SPACING.lg,
+      marginBottom: SPACING.lg,
     },
-    sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-    row: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
-    rowText: { fontSize: 14, color: colors.textDim },
-    rowValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginLeft: 'auto', flexShrink: 1, textAlign: 'right' },
+    sectionTitle: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: SPACING.md },
+    row: { flexDirection: 'row', alignItems: 'center', marginVertical: SPACING.sm },
+    rowText: { fontSize: FONT_SIZE.lg, color: colors.textDim },
+    rowValue: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.text, marginLeft: 'auto', flexShrink: 1, textAlign: 'right' },
     linkBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.primary + '15',
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
       justifyContent: 'center',
-      gap: 8,
-      marginTop: 8,
+      gap: SPACING.sm,
+      marginTop: SPACING.sm,
     },
-    linkBtnText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: 24, fontSize: 14 },
+    linkBtnText: { color: colors.primary, fontSize: FONT_SIZE.lg, fontWeight: '700' },
+    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: SPACING.xxl, fontSize: FONT_SIZE.lg },
   });
 
   if (!transaction) {

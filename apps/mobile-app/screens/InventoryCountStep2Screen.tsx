@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { CheckCircle, Plus, Minus } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -11,64 +11,61 @@ import SuccessOverlay from '../components/SuccessOverlay';
 type Props = NativeStackScreenProps<RootStackParamList, 'InventoryCountStep2'>;
 
 export default function InventoryCountStep2Screen({ route, navigation }: Props) {
-  const { colors, typography, commonStyles } = useTheme();
+  const { colors } = useTheme();
   const { products, batches, addDiscrepancyReport } = useMockData();
-  const { category, location } = route.params;
+  const { location, category } = route.params;
 
-  // Filter products by category
-  const filteredProducts = products.filter(
-    (p) => category === 'All' || p.category.toLowerCase() === category.toLowerCase()
-  );
-
-  // Map product to system quantity (sum of remaining_quantity in all batches)
-  const getSystemQty = (productId: string) => {
-    return batches
-      .filter((b) => b.product_id === productId)
-      .reduce((sum, b) => sum + b.remaining_quantity, 0);
-  };
-
-  // State keeping track of counts: record of productId -> number
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [successVisible, setSuccessVisible] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  useEffect(() => {
-    const initialCounts: Record<string, number> = {};
-    filteredProducts.forEach((p) => {
-      initialCounts[p.id] = getSystemQty(p.id);
-    });
-    setCounts(initialCounts);
-  }, [products, batches]);
+  // Filter products by category if needed
+  const filteredProducts = products.filter(p => {
+    if (category === 'All') return true;
+    return p.category.toLowerCase() === category.toLowerCase();
+  });
 
-  const updateCount = (productId: string, val: string) => {
+  // Calculate system stock for comparison
+  const getSystemQty = (productId: string) => {
+    return batches
+      .filter(b => b.product_id === productId)
+      .reduce((sum, b) => sum + b.remaining_quantity, 0);
+  };
+
+  const handleIncrement = (productId: string, step: number) => {
+    const systemQty = getSystemQty(productId);
+    const current = counts[productId] !== undefined ? counts[productId] : systemQty;
+    const newVal = Math.max(0, current + step);
+    setCounts(prev => ({ ...prev, [productId]: newVal }));
+  };
+
+  const handleInputChange = (productId: string, val: string) => {
     const parsed = parseInt(val);
-    setCounts((prev) => ({
-      ...prev,
-      [productId]: isNaN(parsed) ? 0 : parsed,
-    }));
+    if (!val) {
+      setCounts(prev => ({ ...prev, [productId]: 0 }));
+      return;
+    }
+    if (!isNaN(parsed)) {
+      setCounts(prev => ({ ...prev, [productId]: parsed }));
+    }
   };
 
-  const adjustVal = (productId: string, amount: number) => {
-    setCounts((prev) => ({
-      ...prev,
-      [productId]: Math.max(0, (prev[productId] || 0) + amount),
-    }));
-  };
-
-  const handleFinishCount = () => {
-    // Generate discrepancy reports for any mismatches
+  const handleSubmit = () => {
     let countMismatches = 0;
-    filteredProducts.forEach((p) => {
-      const expected = getSystemQty(p.id);
-      const actual = counts[p.id] !== undefined ? counts[p.id] : expected;
-      if (expected !== actual) {
-        addDiscrepancyReport(
-          p.id,
-          expected,
-          actual,
-          `Audit mismatch from physical cycle count at ${location}. Expected: ${expected}, Counted: ${actual}.`
-        );
+
+    filteredProducts.forEach(prod => {
+      const systemQty = getSystemQty(prod.id);
+      const physicalQty = counts[prod.id] !== undefined ? counts[prod.id] : systemQty;
+
+      if (systemQty !== physicalQty) {
         countMismatches++;
+        // Log a discrepancy report automatically
+        addDiscrepancyReport(
+          prod.id,
+          systemQty,
+          physicalQty,
+          `Audit mismatch count at ${location}. System: ${systemQty}, Physical: ${physicalQty}.`
+        );
       }
     });
 
@@ -78,21 +75,21 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    subTitle: { fontSize: 13, color: colors.textDim, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.backgroundDark },
-    list: { flex: 1, padding: 16 },
+    subTitle: { fontSize: FONT_SIZE.body, color: colors.textDim, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, backgroundColor: colors.backgroundDark },
+    list: { flex: 1, padding: SPACING.lg },
     countCard: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 16,
-      marginBottom: 12,
+      padding: SPACING.lg,
+      marginBottom: SPACING.md,
     },
-    productName: { fontSize: 15, fontWeight: '700', color: colors.text },
-    productSku: { fontSize: 12, color: colors.textDim, marginTop: 2 },
-    controlsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
-    systemQtyText: { fontSize: 13, color: colors.textMuted },
-    counterGroup: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', gap: 8 },
+    productName: { fontSize: FONT_SIZE.xl, fontWeight: '700', color: colors.text },
+    productSku: { fontSize: FONT_SIZE.md, color: colors.textDim },
+    controlsRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.md, paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: colors.border },
+    systemQtyText: { fontSize: FONT_SIZE.body, color: colors.textMuted },
+    counterGroup: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', gap: SPACING.sm },
     counterBtn: {
       width: 36,
       height: 36,
@@ -105,17 +102,18 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
     },
     input: {
       width: 60,
-      height: 36,
+      height: 40,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: RADIUS.md,
       backgroundColor: colors.background,
       textAlign: 'center',
       color: colors.text,
-      fontSize: 15,
+      fontSize: FONT_SIZE.xl,
       fontWeight: '700',
     },
-    footer: { padding: 16, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border },
+    footer: { padding: SPACING.lg, paddingTop: SPACING.sm },
+    listContainer: { paddingBottom: SPACING.lg },
   });
 
   return (
@@ -132,7 +130,7 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
           data={filteredProducts}
           keyExtractor={(item) => item.id}
           style={styles.list}
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => {
             const systemQty = getSystemQty(item.id);
             const currentVal = counts[item.id] !== undefined ? counts[item.id] : systemQty;
@@ -143,16 +141,16 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
                 <View style={styles.controlsRow}>
                   <Text style={styles.systemQtyText}>System: {systemQty} units</Text>
                   <View style={styles.counterGroup}>
-                    <TouchableOpacity style={styles.counterBtn} onPress={() => adjustVal(item.id, -1)}>
+                    <TouchableOpacity style={styles.counterBtn} onPress={() => handleIncrement(item.id, -1)}>
                       <Minus size={16} color={colors.text} />
                     </TouchableOpacity>
                     <TextInput
                       style={styles.input}
                       keyboardType="numeric"
                       value={String(currentVal)}
-                      onChangeText={(val) => updateCount(item.id, val)}
+                      onChangeText={(val) => handleInputChange(item.id, val)}
                     />
-                    <TouchableOpacity style={styles.counterBtn} onPress={() => adjustVal(item.id, 1)}>
+                    <TouchableOpacity style={styles.counterBtn} onPress={() => handleIncrement(item.id, 1)}>
                       <Plus size={16} color={colors.text} />
                     </TouchableOpacity>
                   </View>
@@ -165,7 +163,7 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
         <View style={styles.footer}>
           <AppButton
             label="Submit Audit Count"
-            onPress={handleFinishCount}
+            onPress={handleSubmit}
             variant="primary"
             icon={<CheckCircle size={18} color="#fff" />}
             fullWidth
@@ -179,7 +177,7 @@ export default function InventoryCountStep2Screen({ route, navigation }: Props) 
         message={successMsg}
         onDone={() => {
           setSuccessVisible(false);
-          navigation.navigate('Main', { screen: 'HomeTab' });
+          navigation.navigate('Main', { screen: 'OperationsTab' });
         }}
       />
     </KeyboardAvoidingView>

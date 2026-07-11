@@ -78,7 +78,7 @@ export default function NotificationsScreen({ navigation }: Props) {
                 !item.read && styles.rowUnread,
               ]}
             >
-              <View style={styles.iconBox}>{getIcon(item.category)}</View>
+              <View>{getIcon(item.category)}</View>
               <View style={styles.bodyBox}>
                 <Text style={[styles.title, !item.read && styles.titleUnread]}>{item.title}</Text>
                 <Text style={styles.body}>{item.body}</Text>
@@ -107,32 +107,31 @@ const createStyles = (colors: any, cs: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 10,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.sm,
   },
-  unreadCount: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
-  markReadText: { fontSize: 13, fontWeight: '600', color: colors.primary },
-  listContent: { paddingHorizontal: 16, paddingBottom: 30 },
+  unreadCount: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.textMuted },
+  markReadText: { fontSize: FONT_SIZE.body, fontWeight: '600', color: colors.primary },
+  listContent: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.sm },
   row: {
     flexDirection: 'row',
-    padding: 16,
+    padding: SPACING.lg,
     backgroundColor: colors.card,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: colors.border,
     alignItems: 'flex-start',
-    gap: 12,
+    gap: SPACING.md,
   },
-  rowFirst: { borderTopWidth: 1, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  rowLast: { borderBottomWidth: 1, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
+  rowFirst: { borderTopWidth: 1, borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg },
+  rowLast: { borderBottomWidth: 1, borderBottomLeftRadius: RADIUS.lg, borderBottomRightRadius: RADIUS.lg },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowUnread: { backgroundColor: colors.primary + '0a' },
-  iconBox: { marginTop: 2 },
   bodyBox: { flex: 1 },
-  title: { fontSize: 14, fontWeight: '600', color: colors.textDim },
+  title: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.textDim },
   titleUnread: { color: colors.text, fontWeight: '700' },
-  body: { fontSize: 13, color: colors.textMuted, marginTop: 4, lineHeight: 18 },
-  time: { fontSize: 11, color: colors.textDark, marginTop: 6 },
+  body: { fontSize: FONT_SIZE.body, color: colors.textMuted, marginTop: SPACING.xs, lineHeight: 18 },
+  time: { fontSize: FONT_SIZE.sm, color: colors.textDark, marginTop: SPACING.sm },
   unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, alignSelf: 'center' },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { supabase, withTimeout } from '../lib/supabase';
@@ -8,6 +8,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import StatusBadge from '../components/StatusBadge';
 import SectionHeader from '../components/SectionHeader';
+import StickyScrollView from '../components/StickyScrollView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetail'>;
 
@@ -151,7 +152,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <StickyScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Order ID & Status Badge */}
         <View style={styles.orderHeaderRow}>
           <Text style={styles.orderTitle}>{getOrderCode(order.id, order.created_at)}</Text>
@@ -214,12 +215,14 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
           ))}
         </View>
 
+      </StickyScrollView>
+      <View style={{padding: SPACING.lg}}>
         {/* Action Button */}
         <TouchableOpacity style={styles.receiptBtn} activeOpacity={0.8}>
           <FileText size={18} color="#ffffff" style={{ marginRight: 8 }} />
           <Text style={styles.receiptBtnText}>View Receipt</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -229,9 +232,8 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     container: { ...cs.container },
     center: { ...cs.center },
     scrollContent: {
-      paddingHorizontal: SPACING.lg,
-      paddingTop: SPACING.lg,
-      paddingBottom: 40,
+      flex: 1,
+      padding: SPACING.lg,
     },
     orderHeaderRow: {
       flexDirection: 'row',
@@ -240,7 +242,7 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       marginBottom: SPACING.lg,
     },
     orderTitle: {
-      fontSize: 20,
+      fontSize: FONT_SIZE.title,
       fontWeight: '700',
       color: colors.text,
     },

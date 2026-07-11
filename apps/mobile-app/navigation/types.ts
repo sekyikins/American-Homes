@@ -13,6 +13,7 @@ export type RootStackParamList = {
   CustomerDetail: { customerId: string };
   DiscrepancyReport: { productId?: string };
   InventoryCount: undefined;
+  InventoryList: { category: string; serialized: string; shipmentId: string; warehouseLocation: string };
   InventoryCountStep2: { category: string; location: string };
   OrderDetail: { orderId: string };
   ProductDetail: { productId: string };
@@ -29,8 +30,7 @@ export type RootStackParamList = {
   NotificationSettings: undefined;
   SyncCenter: undefined;
   LanguageSelection: undefined;
-  OrderLookup: undefined;
-  ProductSearch: undefined;
+  CustomerDebtManagement: { customerId: string };
   ReportSuccess: { title?: string; message: string };
   Withdraw: undefined;
   Orders: { customerName?: string } | undefined;
@@ -41,6 +41,6 @@ export type MainTabParamList = {
   HomeTab: undefined;
   InventoryTab: undefined;
   ShipmentsTab: undefined;
-  WalletTab: undefined;
+  OperationsTab: undefined;
   ProfileTab: undefined;
 };

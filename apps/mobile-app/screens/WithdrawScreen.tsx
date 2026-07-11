@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { SPACING, RADIUS, FONT_SIZE, useTheme } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { ChevronDown, ArrowUpRight } from 'lucide-react-native';
+import { ArrowUpRight } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import AppButton from '../components/AppButton';
 import SuccessOverlay from '../components/SuccessOverlay';
+import ModalPicker, { ModalPickerTrigger } from '../components/ModalPicker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Withdraw'>;
 
@@ -56,30 +57,30 @@ export default function WithdrawScreen({ navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
+    content: { padding: SPACING.lg },
     balanceCard: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 20,
+      padding: SPACING.lg,
       alignItems: 'center',
-      marginBottom: 20,
+      marginBottom: SPACING.lg,
     },
-    balanceLabel: { fontSize: 13, color: colors.textDim, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-    balanceValue: { fontSize: 28, fontWeight: '800', color: colors.primary, marginTop: 8 },
-    formGroup: { marginBottom: 18 },
-    label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8 },
+    balanceLabel: { fontSize: FONT_SIZE.body, color: colors.textDim, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+    balanceValue: { fontSize: FONT_SIZE.hero, fontWeight: '800', color: colors.primary, marginTop: SPACING.sm },
+    formGroup: { marginBottom: SPACING.md },
+    label: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.textMuted, marginBottom: SPACING.sm },
     pickerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
     },
-    pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
+    pickerBtnText: { flex: 1, fontSize: FONT_SIZE.xl, color: colors.text },
     input: { ...commonStyles.input },
     modalOverlay: {
       position: 'absolute',
@@ -89,22 +90,22 @@ export default function WithdrawScreen({ navigation }: Props) {
       bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
-      padding: 20,
+      padding: SPACING.xl,
       zIndex: 1000,
     },
     pickerModal: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 8,
+      padding: SPACING.sm,
     },
     pickerItem: {
-      padding: 14,
+      padding: SPACING.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    pickerItemText: { fontSize: 15, color: colors.text },
+    pickerItemText: { fontSize: FONT_SIZE.xl, color: colors.text },
   });
 
   return (
@@ -119,10 +120,7 @@ export default function WithdrawScreen({ navigation }: Props) {
         {/* Network Picker */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Select Payout Provider</Text>
-          <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowNetworkPicker(true)}>
-            <Text style={styles.pickerBtnText}>{network}</Text>
-            <ChevronDown size={20} color={colors.text} />
-          </TouchableOpacity>
+          <ModalPickerTrigger label={network} onPress={() => setShowNetworkPicker(true)} />
         </View>
 
         {/* Phone number */}
@@ -149,35 +147,26 @@ export default function WithdrawScreen({ navigation }: Props) {
             onChangeText={setAmount}
           />
         </View>
+      </ScrollView>
 
+      <View style={{padding: SPACING.lg}}>
         <AppButton
           label="Withdraw Funds"
           onPress={handleWithdraw}
           variant="primary"
           icon={<ArrowUpRight size={20} color="#fff" />}
           fullWidth
-          style={{ marginTop: 20 }}
         />
-      </ScrollView>
+      </View>
 
-      {showNetworkPicker && (
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowNetworkPicker(false)}>
-          <View style={styles.pickerModal}>
-            {networks.map((net) => (
-              <TouchableOpacity
-                key={net}
-                style={styles.pickerItem}
-                onPress={() => {
-                  setNetwork(net);
-                  setShowNetworkPicker(false);
-                }}
-              >
-                <Text style={styles.pickerItemText}>{net}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      )}
+      <ModalPicker
+        visible={showNetworkPicker}
+        title="Select Payout Provider"
+        options={networks}
+        selected={network}
+        onSelect={(net) => { setNetwork(net); setShowNetworkPicker(false); }}
+        onClose={() => setShowNetworkPicker(false)}
+      />
 
       <SuccessOverlay
         visible={successVisible}

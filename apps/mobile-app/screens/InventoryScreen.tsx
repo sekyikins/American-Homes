@@ -3,195 +3,242 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  FlatList,
-  RefreshControl,
   TouchableOpacity,
 } from 'react-native';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useMockData } from '../context/MockDataContext';
+import {
+  MapPin,
+  Tag,
+  Package,
+  Layers,
+  ChevronRight,
+  Cpu,
+} from 'lucide-react-native';
+import SectionHeader from '../components/SectionHeader';
+import AppButton from '../components/AppButton';
+import StickyScrollView from '../components/StickyScrollView';
+
+// InventoryScreen is used directly as a tab screen — it doesn't receive
+// typed screen props, so we keep it prop-free and use useNavigation.
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-interface InventoryItem {
-  id: string;
-  product_id?: string;
-  name: string;
-  sku: string;
-  stock: number;
-  serialized: boolean;
-}
+const WAREHOUSE_LOCATIONS = ['All', 'Austin Hub A', 'Austin Hub B', 'Dallas Warehouse'];
+const SERIALIZED_OPTIONS = ['All', 'Serialized', 'Non-Serialized'];
 
 export default function InventoryScreen() {
-  const { colors, commonStyles, typography } = useTheme();
+  const { colors, commonStyles } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const styles = React.useMemo(() => createStyles(colors, commonStyles, typography), [colors, commonStyles, typography]);
-  
-  const { products, variants, batches } = useMockData();
-  const [skuSearch, setSkuSearch] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+  const { products, shipments } = useMockData();
 
-  const stockMap: Record<string, number> = {};
-  batches.forEach(b => {
-    if (b.product_id) {
-      stockMap[b.product_id] = (stockMap[b.product_id] || 0) + b.remaining_quantity;
-    }
-  });
+  // Derive unique categories from products
+  const categories = ['All', ...Array.from(new Set(products.map((p) => p.category))).sort()];
 
-  const stockLevels: InventoryItem[] = variants.map(v => {
-    const prod = products.find(p => p.id === v.product_id);
-    return {
-      id: v.id,
-      product_id: v.product_id,
-      name: prod ? `${prod.name} (${v.variant_name})` : v.variant_name,
-      sku: v.sku || '',
-      stock: stockMap[v.product_id] || 0,
-      serialized: prod?.has_serial || false,
-    };
-  });
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedSerialized, setSelectedSerialized] = useState('All');
+  const [selectedShipmentId, setSelectedShipmentId] = useState('All');
+  const [selectedWarehouse, setSelectedWarehouse] = useState('All');
 
-  const filteredItems = stockLevels.filter(
-    (item) =>
-      item.name.toLowerCase().includes(skuSearch.toLowerCase()) ||
-      item.sku.toLowerCase().includes(skuSearch.toLowerCase())
-  );
+  const styles = React.useMemo(() => createStyles(colors, commonStyles), [colors, commonStyles]);
 
-  const renderItem = ({ item, index }: { item: InventoryItem; index: number }) => (
-    <TouchableOpacity
-      style={[
-        styles.listItem,
-        index < filteredItems.length - 1 && styles.listItemBorder,
-      ]}
-      onPress={() => {
-        if (item.product_id) {
-          navigation.navigate('ProductDetail', { productId: item.product_id });
-        }
-      }}
-      activeOpacity={0.7}
-    >
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemSku}>
-          SKU: {item.sku}{item.serialized ? '  ·  Serialized' : ''}
-        </Text>
-      </View>
-      <View style={styles.stockBadge}>
-        <Text style={styles.stockBadgeText}>{item.stock}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
+  const handleView = () => {
+    navigation.navigate('InventoryList', {
+      category: selectedCategory,
+      serialized: selectedSerialized,
+      shipmentId: selectedShipmentId,
+      warehouseLocation: selectedWarehouse,
+    });
   };
 
   return (
     <View style={styles.container}>
-      {/* ── Static search header ──────────────────────────────────────────── */}
-      <View style={styles.staticHeader}>
-        <TextInput
-          style={styles.input}
-          placeholder="Search by SKU or product name…"
-          placeholderTextColor={colors.textDim}
-          value={skuSearch}
-          onChangeText={setSkuSearch}
-          returnKeyType="search"
-        />
-        {/* Quick nav shortcuts */}
-        <View style={styles.quickNavRow}>
-          <TouchableOpacity style={styles.quickNavBtn} onPress={() => navigation.navigate('Customers')} activeOpacity={0.75}>
-            <Text style={styles.quickNavText}>Customers</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickNavBtn} onPress={() => navigation.navigate('Shipments')} activeOpacity={0.75}>
-            <Text style={styles.quickNavText}>Shipments</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickNavBtn} onPress={() => navigation.navigate('ReceiveStock', {})} activeOpacity={0.75}>
-            <Text style={styles.quickNavText}>Receive Stock</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <StickyScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-      {/* ── Scrollable inventory list ─────────────────────────────────────── */}
-      <FlatList
-        data={filteredItems}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {skuSearch
-                ? `No products matching "${skuSearch}"`
-                : 'No inventory data yet'}
+        {/* Category */}
+        <SectionHeader
+          title="Product Category"
+          variant="uppercase"
+          style={{ marginBottom: SPACING.sm }}
+        />
+        <View style={styles.grid}>
+          {categories.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.optionBtn, isActive && styles.optionBtnActive]}
+                onPress={() => setSelectedCategory(cat)}
+                activeOpacity={0.75}
+              >
+                <Tag size={15} color={isActive ? colors.primary : colors.textDim} />
+                <Text style={[styles.optionText, isActive && styles.optionTextActive]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Shipment / Batch Source */}
+        <SectionHeader
+          title="Shipment / Batch Source"
+          variant="uppercase"
+          style={{ marginBottom: SPACING.sm, marginTop: SPACING.xl }}
+        />
+        <View style={styles.grid}>
+          <TouchableOpacity
+            style={[styles.optionBtn, selectedShipmentId === 'All' && styles.optionBtnActive]}
+            onPress={() => setSelectedShipmentId('All')}
+            activeOpacity={0.75}
+          >
+            <Layers size={15} color={selectedShipmentId === 'All' ? colors.primary : colors.textDim} />
+            <Text style={[styles.optionText, selectedShipmentId === 'All' && styles.optionTextActive]}>
+              All Shipments
             </Text>
-          </View>
-        }
-      />
+          </TouchableOpacity>
+          {shipments.map((s) => {
+            const isActive = selectedShipmentId === s.id;
+            return (
+              <TouchableOpacity
+                key={s.id}
+                style={[styles.optionBtn, isActive && styles.optionBtnActive]}
+                onPress={() => setSelectedShipmentId(s.id)}
+                activeOpacity={0.75}
+              >
+                <Package size={15} color={isActive ? colors.primary : colors.textDim} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.optionText, isActive && styles.optionTextActive]} numberOfLines={1}>
+                    {s.shipment_code}
+                  </Text>
+                  {s.supplier_name && (
+                    <Text style={styles.optionSub} numberOfLines={1}>{s.supplier_name}</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Warehouse Location */}
+        <SectionHeader
+          title="Warehouse Location"
+          variant="uppercase"
+          style={{ marginBottom: SPACING.sm, marginTop: SPACING.xl }}
+        />
+        <View style={styles.grid}>
+          {WAREHOUSE_LOCATIONS.map((loc) => {
+            const isActive = selectedWarehouse === loc;
+            return (
+              <TouchableOpacity
+                key={loc}
+                style={[styles.optionBtn, isActive && styles.optionBtnActive]}
+                onPress={() => setSelectedWarehouse(loc)}
+                activeOpacity={0.75}
+              >
+                <MapPin size={15} color={isActive ? colors.primary : colors.textDim} />
+                <Text style={[styles.optionText, isActive && styles.optionTextActive]}>
+                  {loc}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Serialized */}
+        <SectionHeader
+          title="Serialization"
+          variant="uppercase"
+          style={{ marginBottom: SPACING.sm, marginTop: SPACING.xl }}
+        />
+        <View style={styles.grid}>
+          {SERIALIZED_OPTIONS.map((opt) => {
+            const isActive = selectedSerialized === opt;
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.optionBtn, isActive && styles.optionBtnActive]}
+                onPress={() => setSelectedSerialized(opt)}
+                activeOpacity={0.75}
+              >
+                <Cpu size={15} color={isActive ? colors.primary : colors.textDim} />
+                <Text style={[styles.optionText, isActive && styles.optionTextActive]}>
+                  {opt}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+      </StickyScrollView>
+
+      {/* Footer CTA */}
+      <View style={styles.footer}>
+        <AppButton
+          label="View Inventory"
+          onPress={handleView}
+          variant="primary"
+          icon={<ChevronRight size={18} color="#fff" />}
+          fullWidth
+        />
+      </View>
     </View>
   );
 }
 
-const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
-  // ── Layout ──────────────────────────────────────────────────────────────────
-  container: { ...cs.container },
+const createStyles = (colors: any, cs: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    content: {
+      paddingHorizontal: SPACING.lg,
+    },
 
-  // ── Static search header ───────────────────────────────────────────────────
-  staticHeader: { ...cs.staticHeader },
-  input: {
-    ...cs.input,
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    paddingVertical: SPACING.sm + 3,
-    paddingHorizontal: SPACING.xl - 6,
-    fontSize: FONT_SIZE.lg,
-    marginBottom: 10,
-  },
-  quickNavRow: { flexDirection: 'row', gap: SPACING.sm },
-  quickNavBtn: { ...cs.chip },
-  quickNavText: { ...cs.chipText },
+    // ── Option grids ────────────────────────────────────────────────────────
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: SPACING.sm,
+      marginBottom: SPACING.xs,
+    },
+    optionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.md,
+      paddingVertical: SPACING.sm,
+      paddingHorizontal: SPACING.md,
+      gap: SPACING.sm,
+      minWidth: '47%',
+      maxWidth: '100%',
+    },
+    optionBtnActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary + '15',
+    },
+    optionText: {
+      fontSize: FONT_SIZE.md,
+      fontWeight: '600',
+      color: colors.text,
+      flexShrink: 1,
+    },
+    optionTextActive: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    optionSub: {
+      fontSize: FONT_SIZE.xs,
+      color: colors.textDim,
+    },
 
-  // ── List ──────────────────────────────────────────────────────────────────
-  listContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
-    paddingBottom: 36,
-  },
-  listItem: { ...cs.listItem },
-  listItemBorder: { ...cs.listItemDivider },
-  itemInfo: { flex: 1, paddingRight: SPACING.md },
-  itemName: { fontSize: FONT_SIZE.xl, color: colors.text, fontWeight: '700' },
-  itemSku: { fontSize: FONT_SIZE.md, color: colors.textMuted, marginTop: 3 },
-
-  stockBadge: {
-    backgroundColor: colors.card,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 48,
-    alignItems: 'center',
-  },
-  stockBadgeText: {
-    color: colors.success,
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-
-  // ── Empty State ─────────────────────────────────────────────────────────────
-  emptyContainer: { ...cs.emptyContainer },
-  emptyText: { ...cs.emptyText },
-});
+    // ── Footer ──────────────────────────────────────────────────────────────
+    footer: {
+      padding: SPACING.lg,
+      paddingTop: SPACING.md,
+      backgroundColor: colors.background,
+    },
+  });

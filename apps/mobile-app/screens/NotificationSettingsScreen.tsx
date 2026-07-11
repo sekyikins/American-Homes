@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, FONT_SIZE } from '../styles/theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
@@ -17,16 +17,16 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { paddingHorizontal: 10 },
+    content: { paddingHorizontal: SPACING.lg },
     settingRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: 6,
+      paddingVertical: SPACING.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    settingText: { fontSize: 16, fontWeight: '500', color: colors.text },
+    settingText: { fontSize: FONT_SIZE.xl, fontWeight: '500', color: colors.text },
   });
 
   return (

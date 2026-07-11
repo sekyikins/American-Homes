@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { View, Text, StyleSheet, TextInput, Alert } from 'react-native';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
-import { FileSpreadsheet, ChevronDown } from 'lucide-react-native';
+import { FileSpreadsheet } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import AppButton from '../components/AppButton';
 import SuccessOverlay from '../components/SuccessOverlay';
+import ModalPicker, { ModalPickerTrigger } from '../components/ModalPicker';
+import StickyScrollView from '../components/StickyScrollView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DiscrepancyReport'>;
 
@@ -51,19 +53,19 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
-    formGroup: { marginBottom: 18 },
-    label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8 },
+    content: { paddingHorizontal: SPACING.lg },
+    formGroup: { marginBottom: SPACING.xl },
+    label: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.textMuted, marginBottom: SPACING.sm },
     pickerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
     },
-    pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
+    pickerBtnText: { flex: 1, fontSize: FONT_SIZE.xl, color: colors.text },
     input: { ...commonStyles.input },
     textArea: {
       ...commonStyles.input,
@@ -78,37 +80,36 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
       bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
-      padding: 20,
+      padding: SPACING.xl,
       zIndex: 1000,
     },
     pickerModal: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       maxHeight: '60%',
-      padding: 8,
+      padding: SPACING.sm,
     },
     pickerItem: {
-      padding: 14,
+      padding: SPACING.lg,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    pickerItemText: { fontSize: 15, color: colors.text },
+    pickerItemText: { fontSize: FONT_SIZE.xl, color: colors.text },
+    actionPad: { padding: SPACING.lg },
   });
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <StickyScrollView contentContainerStyle={styles.content}>
         {/* Product selector */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Select Product</Text>
-          <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowPicker(true)}>
-            <Text style={styles.pickerBtnText}>
-              {selectedProduct ? selectedProduct.name : 'Choose a product'}
-            </Text>
-            <ChevronDown size={20} color={colors.textDim} />
-          </TouchableOpacity>
+          <ModalPickerTrigger
+            label={selectedProduct ? selectedProduct.name : ''}
+            onPress={() => setShowPicker(true)}
+          />
         </View>
 
         {/* Expected Qty */}
@@ -151,41 +152,29 @@ export default function DiscrepancyReportScreen({ route, navigation }: Props) {
           />
         </View>
 
+      </StickyScrollView>
+      <View style={styles.actionPad}>
         <AppButton
           label="Submit Discrepancy Report"
           onPress={handleSubmit}
           variant="primary"
           icon={<FileSpreadsheet size={20} color="#fff" />}
           fullWidth
-          style={{ marginTop: 20 }}
         />
-      </ScrollView>
+      </View>
 
-      {showPicker && (
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowPicker(false)}
-        >
-          <View style={styles.pickerModal}>
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    setProductId(item.id);
-                    setShowPicker(false);
-                  }}
-                >
-                  <Text style={styles.pickerItemText}>{item.name}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      )}
+      <ModalPicker
+        visible={showPicker}
+        title="Select Product"
+        options={products.map(p => p.name)}
+        selected={selectedProduct ? selectedProduct.name : ''}
+        onSelect={(name) => {
+          const prod = products.find(p => p.name === name);
+          if (prod) setProductId(prod.id);
+          setShowPicker(false);
+        }}
+        onClose={() => setShowPicker(false)}
+      />
 
       <SuccessOverlay
         visible={successVisible}

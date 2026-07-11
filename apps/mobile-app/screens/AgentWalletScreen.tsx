@@ -148,7 +148,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     bannerWrapper: {
       paddingHorizontal: SPACING.lg,
       paddingTop: SPACING.lg,
-      paddingBottom: SPACING.sm,
       backgroundColor: colors.background,
     },
     banner: {
@@ -181,7 +180,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     agentMeta: {
       fontSize: FONT_SIZE.sm,
       color: colors.textDim,
-      marginTop: 2,
     },
     balanceBlock: { alignItems: 'flex-end' },
     balanceLabel: {
@@ -196,14 +194,12 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontWeight: '800',
       color: colors.text,
       fontVariant: ['tabular-nums'],
-      marginTop: 2,
     },
 
     scroll: { flex: 1 },
     scrollContent: {
       paddingHorizontal: SPACING.lg,
-      paddingTop: SPACING.lg,
-      paddingBottom: 40,
+      paddingBottom: SPACING.sm,
     },
 
     txCard: { ...cs.card },
@@ -228,7 +224,6 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     txDate: {
       fontSize: FONT_SIZE.sm,
       color: colors.textDim,
-      marginTop: 2,
     },
     txAmount: {
       fontSize: FONT_SIZE.xl,

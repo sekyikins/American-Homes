@@ -21,24 +21,19 @@ export default function ReportsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Quick Actions Grid */}
-        <SectionHeader title="Make A Report" variant="uppercase" />
-        <View style={styles.grid}>
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('DiscrepancyReport')}
-          >
-            <FileWarning size={24} color={colors.pending} />
-            <Text style={styles.actionCardText}>Discrepancy</Text>
-          </TouchableOpacity>
+      {/* Quick Actions Grid */}
+      <SectionHeader title="Make A Report" variant="uppercase" />
+      <View style={styles.grid}>
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('DiscrepancyReport')}
+        >
+          <FileWarning size={24} color={colors.pending} />
+          <Text style={styles.actionCardText}>Discrepancy</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.actionCard}
+        <TouchableOpacity 
+          style={styles.actionCard}
             onPress={() => navigation.navigate('ReportDamage')}
           >
             <Hammer size={24} color={colors.error} />
@@ -77,8 +72,14 @@ export default function ReportsScreen({ navigation }: Props) {
           >
             <Text style={[styles.tabText, activeTab === 'shipment' && styles.tabTextActive]}>Shipment</Text>
           </TouchableOpacity>
-        </View>
+      </View>
 
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        
         {/* Report List */}
         <View style={styles.list}>
           {activeTab === 'discrepancy' && (
@@ -95,7 +96,7 @@ export default function ReportsScreen({ navigation }: Props) {
                         {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </Text>
                     </View>
-                    <Text style={[styles.reportDesc, { marginBottom: 6, fontWeight: '700', color: colors.error }]}>
+                    <Text style={[styles.reportDesc, { marginBottom: SPACING.xs, fontWeight: '700', color: colors.error }]}>
                       Expected: {item.expected_qty}  •  Physical: {item.actual_qty} ({item.actual_qty - item.expected_qty > 0 ? '+' : ''}{item.actual_qty - item.expected_qty})
                     </Text>
                     <Text style={styles.reportDesc}>{item.notes}</Text>
@@ -119,7 +120,7 @@ export default function ReportsScreen({ navigation }: Props) {
                         {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </Text>
                     </View>
-                    <Text style={[styles.reportDesc, { marginBottom: 6, fontWeight: '700', color: colors.error }]}>
+                    <Text style={[styles.reportDesc, { marginBottom: SPACING.xs, fontWeight: '700', color: colors.error }]}>
                       Severity: {item.severity} {item.serial_number ? ` •  Serial: ${item.serial_number}` : ''}
                     </Text>
                     <Text style={styles.reportDesc}>{item.description}</Text>
@@ -143,7 +144,7 @@ export default function ReportsScreen({ navigation }: Props) {
                         {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </Text>
                     </View>
-                    <Text style={[styles.reportDesc, { marginBottom: 6, fontWeight: '700', color: colors.primary }]}>
+                    <Text style={[styles.reportDesc, { marginBottom: SPACING.xs, fontWeight: '700', color: colors.primary }]}>
                       Category: {item.issue_type}
                     </Text>
                     <Text style={styles.reportDesc}>{item.description}</Text>
@@ -159,37 +160,37 @@ export default function ReportsScreen({ navigation }: Props) {
 }
 
 const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: SPACING.lg },
   scroll: { flex: 1 },
-  content: { padding: 16 },
-  grid: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  content: {},
+  grid: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xl },
   actionCard: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: colors.primary,
-    padding: 10,
+    padding: SPACING.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionCardText: { fontSize: 12, fontWeight: '700', color: colors.text, marginTop: 8, textAlign: 'center' },
-  tabBar: { flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: 1, borderRadius: 10, borderBottomColor: colors.border, overflow: 'hidden', marginBottom: 12 },
-  tabBtn: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  actionCardText: { fontSize: FONT_SIZE.md, fontWeight: '700', color: colors.text, marginTop: SPACING.sm, textAlign: 'center' },
+  tabBar: { flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: 1, borderRadius: RADIUS.md, borderBottomColor: colors.border, overflow: 'hidden', marginBottom: SPACING.md },
+  tabBtn: { flex: 1, paddingVertical: SPACING.md, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
-  tabText: { fontSize: 13, fontWeight: '600', color: colors.textDim },
+  tabText: { fontSize: FONT_SIZE.body, fontWeight: '600', color: colors.textDim },
   tabTextActive: { color: colors.primary, fontWeight: '700' },
   list: { flex: 1 },
   reportCard: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    marginBottom: 10,
+    padding: SPACING.lg,
+    marginBottom: SPACING.sm,
   },
-  reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  reportTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
-  reportDate: { fontSize: 11, color: colors.textDim },
-  reportDesc: { fontSize: 13, color: colors.textMuted },
+  reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  reportTitle: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.text },
+  reportDate: { fontSize: FONT_SIZE.sm, color: colors.textDim },
+  reportDesc: { fontSize: FONT_SIZE.body, color: colors.textMuted },
 });

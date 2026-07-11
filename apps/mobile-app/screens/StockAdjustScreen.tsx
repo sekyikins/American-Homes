@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { ArrowUpDown, ChevronDown, Plus, Minus } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -45,37 +45,37 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
 
     setQty('');
     setReason('');
-    setSuccessMsg(`Stock level adjusted successfully. System records updated by ${signedQty > 0 ? '+' : ''}${signedQty} units for ${selectedProduct?.name || ''}.`);
+    setSuccessMsg(`Stock successfully adjusted. Registered a ${direction === 'add' ? 'positive' : 'negative'} correction of ${adjustmentAmount} units for ${selectedProduct?.name || 'product'}.`);
     setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
-    formGroup: { marginBottom: 18 },
-    label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8 },
+    content: { padding: SPACING.lg },
+    formGroup: { marginBottom: SPACING.xl },
+    label: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.textMuted, marginBottom: SPACING.sm },
     pickerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
     },
-    pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
-    directionContainer: { flexDirection: 'row', gap: 12 },
+    pickerBtnText: { flex: 1, fontSize: FONT_SIZE.xl, color: colors.text },
+    directionContainer: { flexDirection: 'row', gap: SPACING.md },
     directionBtn: {
       flex: 1,
       flexDirection: 'row',
-      paddingVertical: 12,
+      paddingVertical: SPACING.md,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: RADIUS.md,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.card,
-      gap: 6,
+      gap: SPACING.sm,
     },
     directionBtnActiveAdd: {
       borderColor: colors.success,
@@ -85,7 +85,7 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
       borderColor: colors.error,
       backgroundColor: colors.error + '15',
     },
-    directionText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    directionText: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.text },
     directionTextActiveAdd: { color: colors.success, fontWeight: '700' },
     directionTextActiveRemove: { color: colors.error, fontWeight: '700' },
     input: { ...commonStyles.input },
@@ -97,23 +97,24 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
       bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
-      padding: 20,
+      padding: SPACING.xl,
       zIndex: 1000,
     },
     pickerModal: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       maxHeight: '60%',
-      padding: 8,
+      padding: SPACING.sm,
     },
     pickerItem: {
-      padding: 14,
+      padding: SPACING.lg,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    pickerItemText: { fontSize: 15, color: colors.text },
+    pickerItemText: { fontSize: FONT_SIZE.xl, color: colors.text },
+    actionPad: { padding: SPACING.lg },
   });
 
   return (
@@ -177,15 +178,16 @@ export default function StockAdjustScreen({ route, navigation }: Props) {
           />
         </View>
 
+      </ScrollView>
+      <View style={styles.actionPad}>
         <AppButton
           label="Apply Adjustment"
           onPress={handleAdjust}
           variant="primary"
           icon={<ArrowUpDown size={20} color="#fff" />}
           fullWidth
-          style={{ marginTop: 20 }}
         />
-      </ScrollView>
+      </View>
 
       {/* Product Modal */}
       {showProductPicker && (

@@ -158,14 +158,13 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   },
   listContent: {
     padding: SPACING.lg,
-    paddingBottom: 32,
   },
   center: {
     ...cs.center,
   },
   card: {
     ...cs.cardPadded,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -184,14 +183,14 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   locationText: {
     fontSize: FONT_SIZE.md,
     color: colors.textDim,
-    marginTop: 3,
+    marginTop: SPACING.xs,
   },
   cardBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 10,
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

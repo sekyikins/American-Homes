@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { Play, MapPin, Tag } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import AppButton from '../components/AppButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InventoryCount'>;
 
@@ -11,38 +12,36 @@ const locations = ['Austin Hub A', 'Austin Hub B', 'Dallas Warehouse'];
 const categories = ['All', 'Electronics', 'Appliances', 'Kitchen', 'Bedding', 'Lighting'];
 
 export default function InventoryCountScreen({ navigation }: Props) {
-  const { colors, typography, commonStyles } = useTheme();
+  const { colors, commonStyles } = useTheme();
   const [selectedLocation, setSelectedLocation] = useState(locations[0]);
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
-    sectionLabel: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+    content: { paddingHorizontal: SPACING.lg },
+    sectionLabel: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: SPACING.md },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.lg },
     optionBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      minWidth: '45%',
-      gap: 8,
+      borderRadius: RADIUS.md,
+      paddingVertical: SPACING.md,
+      paddingHorizontal: SPACING.lg,
+      minWidth: '48%',
+      gap: SPACING.sm,
     },
     optionBtnActive: {
       borderColor: colors.primary,
       backgroundColor: colors.primary + '15',
     },
-    optionText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    optionText: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.text },
     optionTextActive: { color: colors.primary, fontWeight: '700' },
     startBtn: {
-      ...commonStyles.button,
-      marginTop: 20,
       flexDirection: 'row',
-      gap: 8,
+      padding: SPACING.lg,
     },
     startBtnText: { ...commonStyles.buttonText },
   });
@@ -84,15 +83,16 @@ export default function InventoryCountScreen({ navigation }: Props) {
           })}
         </View>
 
-        <TouchableOpacity
-          style={styles.startBtn}
-          onPress={() => navigation.navigate('InventoryCountStep2', { location: selectedLocation, category: selectedCategory })}
-          activeOpacity={0.8}
-        >
-          <Play size={18} color="#fff" />
-          <Text style={styles.startBtnText}>Start Counting</Text>
-        </TouchableOpacity>
       </ScrollView>
+      <View style={styles.startBtn}>
+        <AppButton
+          label="Start Audit Count"
+          onPress={() => navigation.navigate('InventoryCountStep2', { location: selectedLocation, category: selectedCategory })}
+          variant="primary"
+          icon={<Play size={18} color="#fff" />}
+          fullWidth
+        />
+      </View>
     </View>
   );
 }

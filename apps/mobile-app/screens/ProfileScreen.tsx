@@ -3,12 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
   Alert,
 } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, Sun, Moon, Smartphone } from 'lucide-react-native';
 
 // Global styling theme
 import { useTheme, ThemeMode, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
@@ -18,13 +17,14 @@ import { RootStackParamList } from '../navigation/types';
 import { useMockData } from '../context/MockDataContext';
 import { supabase } from '../lib/supabase';
 import SectionHeader from '../components/SectionHeader';
+import StickyScrollView from '../components/StickyScrollView';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const THEME_OPTIONS: { label: string; mode: ThemeMode }[] = [
-  { label: '☀️  Light', mode: 'light' },
-  { label: '🌙  Dark', mode: 'dark' },
-  { label: '📱  Device', mode: 'device' },
+const THEME_OPTIONS: { label: string; mode: ThemeMode; icon: any }[] = [
+  { label: 'Light', mode: 'light', icon: Sun },
+  { label: 'Dark', mode: 'dark', icon: Moon },
+  { label: 'Device', mode: 'device', icon: Smartphone },
 ];
 
 interface Props {
@@ -41,19 +41,32 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
 
   const currentUser = mockData?.currentUser;
   
-  const handleSignOutPress = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      // ignore
-    }
-    if (mockData?.signOutMockUser) {
-      mockData.signOutMockUser();
-    }
-    if (onSignOut) {
-      onSignOut();
-    }
-    navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+  const handleSignOutPress = () => {
+    Alert.alert(
+      'Sign Out Operator',
+      'Are you sure you want to sign out and lock the active operator terminal?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.auth.signOut();
+            } catch (e) {
+              // ignore
+            }
+            if (mockData?.signOutMockUser) {
+              mockData.signOutMockUser();
+            }
+            if (onSignOut) {
+              onSignOut();
+            }
+            navigation.reset({ index: 0, routes: [{ name: 'SignIn' }] });
+          }
+        }
+      ]
+    );
   };
 
   const getInitials = (name: string) => {
@@ -74,6 +87,12 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
   };
 
   const menuItems = [
+    { 
+      title: 'Wallet & Earnings', 
+      description: 'View your commissions, base salary, and request money withdrawals.', 
+      value: currentUser ? `$${currentUser.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '',
+      onPress: () => navigation.navigate('Wallet')
+    },
     { 
       title: 'Offline Synchronization', 
       description: 'Configure ledger sync frequency and local database caches.', 
@@ -97,18 +116,6 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
       description: 'Update current system authentication credentials.', 
       value: '',
       onPress: () => navigation.navigate('ChangePassword')
-    },
-    { 
-      title: 'Operations Reports', 
-      description: 'Log and view discrepancy reports, damages, and shipment issues.', 
-      value: '',
-      onPress: () => navigation.navigate('Reports')
-    },
-    { 
-      title: 'Tasks & Alerts', 
-      description: 'Verify arrivals, reconcile discrepancies, and view status actions.', 
-      value: '',
-      onPress: () => navigation.navigate('TasksAndAlerts')
     },
     { 
       title: 'Bluetooth Scanner Settings', 
@@ -136,7 +143,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
           </View>
           <View style={styles.operatorInfo}>
             <Text style={styles.operatorName}>
-              {currentUser ? currentUser.name : 'James Cole'}
+              {currentUser ? currentUser.name : ' '}
             </Text>
             <Text style={styles.operatorRole}>
               {currentUser ? getRoleLabel(currentUser.role) : 'Warehouse Operator'} • Lead
@@ -150,7 +157,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
       </View>
 
       {/* Scrollable Settings Options */}
-      <ScrollView
+      <StickyScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -164,7 +171,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         }
       >
         {/* Theme Selector */}
-        <SectionHeader title="Appearance" />
+        <SectionHeader title="Appearance" variant='compact' />
         <View style={styles.card}>
           <View style={styles.themeRow}>
             <View style={styles.menuLeft}>
@@ -178,6 +185,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
           <View style={styles.themeOptions}>
             {THEME_OPTIONS.map((opt) => {
               const isSelected = mode === opt.mode;
+              const Icon = opt.icon;
               return (
                 <TouchableOpacity
                   key={opt.mode}
@@ -188,6 +196,10 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
                   onPress={() => setMode(opt.mode)}
                   activeOpacity={0.75}
                 >
+                  <Icon
+                    size={15}
+                    color={isSelected ? "#fff" : colors.textMuted}
+                  />
                   <Text
                     style={[
                       styles.themeOptionText,
@@ -203,7 +215,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         </View>
 
         {/* Settings Options */}
-        <SectionHeader title="App Preferences" style={{ marginTop: SPACING.xxl }} />
+        <SectionHeader title="App Preferences" variant='compact' />
         <View style={styles.card}>
           {menuItems.map((item, idx) => (
             <TouchableOpacity
@@ -235,7 +247,7 @@ export default function ProfileScreen({ refreshing = false, onRefresh, onSignOut
         >
           <Text style={styles.signOutBtnText}>Sign Out Operator</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </StickyScrollView>
     </View>
   );
 }
@@ -244,15 +256,13 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   // ── Layout ──────────────────────────────────────────────────────────────────
   container: { ...cs.container },
   staticHeader: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.xs,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
   },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: 36,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
   },
 
   // ── Operator Card ───────────────────────────────────────────────────────────
@@ -263,18 +273,17 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
     padding: SPACING.xl,
     gap: SPACING.lg,
   },
-  avatar: { ...cs.avatar },
+  avatar: { ...cs.avatar, borderColor: colors.primary },
   avatarText: { ...cs.avatarText },
   operatorInfo: { flex: 1 },
   operatorName: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.xxl,
     fontWeight: '700',
     color: colors.text,
   },
   operatorRole: {
     fontSize: FONT_SIZE.body,
     color: colors.textDim,
-    marginTop: 2,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -300,7 +309,7 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   },
 
   // ── Card ────────────────────────────────────────────────────────────────────
-  card: { ...cs.card },
+  card: { ...cs.card, marginBottom: SPACING.xl },
 
   // ── Theme Selector ──────────────────────────────────────────────────────────
   themeRow: { padding: SPACING.lg },
@@ -316,11 +325,14 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   },
   themeOptionBtn: {
     flex: 1,
-    paddingVertical: 10,
+    flexDirection: 'row',
+    paddingVertical: SPACING.sm,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
     backgroundColor: colors.background,
   },
   themeOptionBtnActive: {
@@ -345,6 +357,6 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   menuValue: { ...typo.menuValue },
 
   // ── Sign Out ────────────────────────────────────────────────────────────────
-  signOutBtn: { ...cs.buttonOutline, marginTop: 28 },
+  signOutBtn: { ...cs.buttonOutline },
   signOutBtnText: { ...cs.buttonOutlineText },
 });

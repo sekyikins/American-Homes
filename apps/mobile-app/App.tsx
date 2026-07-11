@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, StatusBar as RNStatusBar, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { Platform, StatusBar as RNStatusBar, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { Home, Package, User, ChevronLeft, Truck, Wallet, Bell } from 'lucide-react-native';
+import { Home, Package, User, ChevronLeft, Truck, Bell, Sliders } from 'lucide-react-native';
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
-import { ThemeProvider, useTheme, SPACING, RADIUS, FONT_SIZE } from './styles/theme';
+import { ThemeProvider, useTheme } from './styles/theme';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 import { MockDataProvider, useMockData } from './context/MockDataContext';
@@ -22,9 +23,11 @@ import SignInScreen from './screens/SignInScreen';
 // ── Main Tab Screens ──────────────────────────────────────────────────────────
 import HomeScreen from './screens/HomeScreen';
 import InventoryScreen from './screens/InventoryScreen';
+import InventoryListScreen from './screens/InventoryListScreen';
 import ScanScreen from './screens/ScanScreen';
 import OrdersScreen from './screens/OrdersScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import OperationsScreen from './screens/OperationsScreen';
 
 // ── Stack Screens ─────────────────────────────────────────────────────────────
 import ActivityScreen from './screens/ActivityScreen';
@@ -51,8 +54,7 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import NotificationSettingsScreen from './screens/NotificationSettingsScreen';
 import SyncCenterScreen from './screens/SyncCenterScreen';
 import LanguageSelectionScreen from './screens/LanguageSelectionScreen';
-import OrderLookupScreen from './screens/OrderLookupScreen';
-import ProductSearchScreen from './screens/ProductSearchScreen';
+import CustomerDebtManagementScreen from './screens/CustomerDebtManagementScreen';
 import ReportSuccessScreen from './screens/ReportSuccessScreen';
 import WithdrawScreen from './screens/WithdrawScreen';
 import AgentWalletScreen from './screens/AgentWalletScreen';
@@ -60,7 +62,7 @@ import AgentWalletScreen from './screens/AgentWalletScreen';
 // ── Nav types ─────────────────────────────────────────────────────────────────
 import { RootStackParamList, MainTabParamList } from './navigation/types';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +80,7 @@ function CustomHeader({ route, navigation, options }: any) {
   const pt = Platform.OS === 'android' ? RNStatusBar.currentHeight || 0 : 0;
   const title = options.title || route.name;
   const canGoBack = navigation.canGoBack();
-  const isTabScreen = ['HomeTab', 'InventoryTab', 'ShipmentsTab', 'WalletTab', 'ProfileTab'].includes(route.name);
+  const isTabScreen = ['HomeTab', 'InventoryTab', 'ShipmentsTab', 'OperationsTab', 'ProfileTab'].includes(route.name);
   const showBackButton = canGoBack && !isTabScreen;
 
   const isHome = route.name === 'HomeTab';
@@ -236,7 +238,7 @@ function MainTabs() {
             HomeTab:      Home,
             InventoryTab: Package,
             ShipmentsTab: Truck,
-            WalletTab:    Wallet,
+            OperationsTab: Sliders,
             ProfileTab:   User,
           };
           const Icon = icons[route.name];
@@ -247,7 +249,7 @@ function MainTabs() {
       <Tab.Screen name="HomeTab" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="InventoryTab" component={InventoryScreen} options={{ title: 'Inventory' }} />
       <Tab.Screen name="ShipmentsTab" component={ShipmentsScreen} options={{ title: 'Shipments' }} />
-      <Tab.Screen name="WalletTab" component={WalletScreen} options={{ title: 'Wallet' }} />
+      <Tab.Screen name="OperationsTab" component={OperationsScreen} options={{ title: 'Operations' }} />
       <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
@@ -275,15 +277,49 @@ function SignInWrapper({ navigation }: any) {
 // ─────────────────────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { colors } = useTheme();
+  const mockData = useMockData();
+  const [checking, setChecking] = React.useState(true);
+  const [hasUser, setHasUser] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkUser = async () => {
+      if (mockData?.currentUser) {
+        setHasUser(true);
+        setChecking(false);
+        return;
+      }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setHasUser(true);
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkUser();
+  }, [mockData?.currentUser]);
+
+  if (checking) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <Stack.Navigator
       id="root-navigator"
-      initialRouteName="Welcome"
+      initialRouteName={hasUser ? "Main" : "Welcome"}
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
         gestureDirection: 'horizontal',
-        contentStyle: { backgroundColor: colors.background },
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        cardStyle: { backgroundColor: colors.background },
       }}
     >
       {/* ── Auth ─────────────────────────────────────────── */}
@@ -328,6 +364,11 @@ function RootNavigator() {
         name="DiscrepancyReport"
         component={DiscrepancyReportScreen}
         options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Discrepancy Report' }}
+      />
+      <Stack.Screen
+        name="InventoryList"
+        component={InventoryListScreen}
+        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Inventory' }}
       />
       <Stack.Screen
         name="InventoryCount"
@@ -415,14 +456,9 @@ function RootNavigator() {
         options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Language' }}
       />
       <Stack.Screen
-        name="OrderLookup"
-        component={OrderLookupScreen}
-        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Order Lookup' }}
-      />
-      <Stack.Screen
-        name="ProductSearch"
-        component={ProductSearchScreen}
-        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Product Search' }}
+        name="CustomerDebtManagement"
+        component={CustomerDebtManagementScreen}
+        options={{ headerShown: true, header: (props) => <CustomHeader {...props} />, title: 'Manage Balances' }}
       />
       <Stack.Screen
         name="ReportSuccess"
@@ -481,9 +517,11 @@ function AppShell() {
   };
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <RootNavigator />
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+      <NavigationContainer theme={navigationTheme}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <RootNavigator />
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }

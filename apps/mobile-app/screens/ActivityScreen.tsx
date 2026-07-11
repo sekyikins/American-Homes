@@ -10,7 +10,12 @@ import {
   RefreshControl,
 } from 'react-native';
 import { supabase, withTimeout } from '../lib/supabase';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
+import { useMockData } from '../context/MockDataContext';
+import {
+  CheckCircle, Package, ScanLine, ShoppingCart,
+  FileText, AlertTriangle, Wallet, RefreshCw, ClipboardList
+} from 'lucide-react-native';
 
 type LogEntry = {
   id: string;
@@ -20,44 +25,68 @@ type LogEntry = {
   user_id: string | null;
 };
 
-const ACTION_COLORS: Record<string, string> = {
-  SERIAL_SCANNED:            '#22c55e',
-  BATCH_CREATED:             '#6366f1',
-  BATCH_RECEIVED:            '#6366f1',
-  SHIPMENT_CREATED:          '#f59e0b',
-  SHIPMENT_RECEIVED:         '#10b981',
-  AGENT_COMMISSION_UPDATED:  '#8b5cf6',
-  COMMISSION_CREDITED:       '#10b981',
-  CREDIT_PAYMENT_RECORDED:   '#3b82f6',
-  ORDER_SYNCED:              '#f97316',
-  ORDER_SYNC_SUCCESS:        '#f97316',
-  WITHDRAWAL_COMPLETED:      '#22c55e',
-  WITHDRAWAL_FAILED:         '#ef4444',
+// Map action strings to icon + accent color
+const ACTION_META: Record<string, { color: string; icon: any }> = {
+  SERIAL_SCANNED:             { color: '#22c55e', icon: ScanLine },
+  BATCH_CREATED:              { color: '#6366f1', icon: Package },
+  BATCH_RECEIVED:             { color: '#6366f1', icon: Package },
+  SHIPMENT_CREATED:           { color: '#f59e0b', icon: Package },
+  SHIPMENT_RECEIVED:          { color: '#10b981', icon: Package },
+  AGENT_COMMISSION_UPDATED:   { color: '#8b5cf6', icon: Wallet },
+  COMMISSION_CREDITED:        { color: '#10b981', icon: Wallet },
+  CREDIT_PAYMENT_RECORDED:    { color: '#3b82f6', icon: Wallet },
+  ORDER_SYNCED:               { color: '#f97316', icon: ShoppingCart },
+  ORDER_SYNC_SUCCESS:         { color: '#f97316', icon: ShoppingCart },
+  WITHDRAWAL_COMPLETED:       { color: '#22c55e', icon: Wallet },
+  WITHDRAWAL_FAILED:          { color: '#ef4444', icon: Wallet },
+  TASK_COMPLETED:             { color: '#10b981', icon: CheckCircle },
+  INVENTORY_COUNT:            { color: '#6366f1', icon: ClipboardList },
+  STOCK_ADJUSTED:             { color: '#f59e0b', icon: Package },
+  ORDER_CREATED:              { color: '#f97316', icon: ShoppingCart },
+  DISCREPANCY_REPORTED:       { color: '#ef4444', icon: AlertTriangle },
+  DAMAGE_REPORTED:            { color: '#ef4444', icon: AlertTriangle },
+  SHIPMENT_ISSUE_REPORTED:    { color: '#f59e0b', icon: FileText },
+  CUSTOMER_DEBT_ADJUSTED:     { color: '#3b82f6', icon: Wallet },
+  CUSTOMER_PAYMENT_RECORDED:  { color: '#10b981', icon: Wallet },
 };
 
-// No external refreshKey — pull-to-refresh is handled internally
+const FILTER_TABS = ['All', 'Inventory', 'Orders', 'Finance', 'Tasks'];
+const FILTER_ACTIONS: Record<string, string[]> = {
+  Inventory: ['SERIAL_SCANNED', 'BATCH_CREATED', 'BATCH_RECEIVED', 'SHIPMENT_RECEIVED', 'STOCK_ADJUSTED', 'INVENTORY_COUNT', 'DISCREPANCY_REPORTED', 'DAMAGE_REPORTED'],
+  Orders: ['ORDER_SYNCED', 'ORDER_SYNC_SUCCESS', 'ORDER_CREATED'],
+  Finance: ['COMMISSION_CREDITED', 'CREDIT_PAYMENT_RECORDED', 'WITHDRAWAL_COMPLETED', 'WITHDRAWAL_FAILED', 'CUSTOMER_DEBT_ADJUSTED', 'CUSTOMER_PAYMENT_RECORDED', 'AGENT_COMMISSION_UPDATED'],
+  Tasks: ['TASK_COMPLETED', 'SHIPMENT_ISSUE_REPORTED', 'SHIPMENT_CREATED'],
+};
+
 export default function ActivityScreen() {
   const { colors } = useTheme();
+  const { currentUser } = useMockData();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const PAGE = 25;
+  const PAGE = 30;
 
   const fetchLogs = useCallback(async (reset = false) => {
     const start = reset ? 0 : offset;
     try {
-      const { data, error } = await withTimeout(
-        supabase
-          .from('audit_logs')
-          .select('id, action, details, created_at, user_id')
-          .order('created_at', { ascending: false })
-          .range(start, start + PAGE - 1)
-      );
+      let query = supabase
+        .from('audit_logs')
+        .select('id, action, details, created_at, user_id')
+        .order('created_at', { ascending: false })
+        .range(start, start + PAGE - 1);
+
+      // Filter to current user's mobile-app activities if not admin
+      if (currentUser && currentUser.role !== 'admin') {
+        query = query.eq('user_id', currentUser.id);
+      }
+
+      const { data, error } = await withTimeout(query);
 
       if (error) console.warn('Supabase error (audit_logs):', error.message);
 
@@ -71,7 +100,7 @@ export default function ActivityScreen() {
     } finally {
       setLoading(false);
     }
-  }, [offset]);
+  }, [offset, currentUser]);
 
   useEffect(() => {
     setOffset(0);
@@ -91,9 +120,13 @@ export default function ActivityScreen() {
     setRefreshing(false);
   };
 
-  const filtered = search
-    ? logs.filter(l => l.action.toLowerCase().includes(search.toLowerCase()))
-    : logs;
+  const filtered = logs.filter(l => {
+    const matchesSearch = !search || l.action.toLowerCase().includes(search.toLowerCase()) ||
+      (l.details && JSON.stringify(l.details).toLowerCase().includes(search.toLowerCase()));
+    const matchesFilter = activeFilter === 'All' ||
+      (FILTER_ACTIONS[activeFilter] || []).some(a => l.action.includes(a));
+    return matchesSearch && matchesFilter;
+  });
 
   const formatDetail = (log: LogEntry): string => {
     const d = log.details as any;
@@ -101,9 +134,12 @@ export default function ActivityScreen() {
     if (typeof d === 'string') return d;
     const parts = [
       d.message,
+      d.user_name && `By: ${d.user_name}`,
       d.serial_number && `SN: ${d.serial_number}`,
       d.order_id && `Order: ${String(d.order_id).slice(0, 8)}`,
       d.amount && `$${d.amount}`,
+      d.product_name,
+      d.task_title,
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(' • ') : JSON.stringify(d).slice(0, 80);
   };
@@ -118,22 +154,20 @@ export default function ActivityScreen() {
   };
 
   const renderItem = ({ item }: { item: LogEntry }) => {
-    const accent = ACTION_COLORS[item.action] || colors.textDim;
+    const meta = ACTION_META[item.action] || { color: colors.textDim, icon: FileText };
+    const accent = meta.color;
+    const IconComp = meta.icon;
+
     return (
       <View style={styles.logRow}>
         <View style={[styles.accentBar, { backgroundColor: accent }]} />
+        <View style={[styles.iconBox, { backgroundColor: accent + '18' }]}>
+          <IconComp size={16} color={accent} />
+        </View>
         <View style={styles.logBody}>
           <View style={styles.logTop}>
-            <View
-              style={[
-                styles.badge,
-                { borderColor: accent + '55', backgroundColor: accent + '18' },
-              ]}
-            >
-              <Text
-                style={[styles.badgeText, { color: accent }]}
-                numberOfLines={1}
-              >
+            <View style={[styles.badge, { borderColor: accent + '55', backgroundColor: accent + '18' }]}>
+              <Text style={[styles.badgeText, { color: accent }]} numberOfLines={1}>
                 {item.action.replace(/_/g, ' ')}
               </Text>
             </View>
@@ -153,11 +187,26 @@ export default function ActivityScreen() {
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Filter by action type..."
+          placeholder="Search activity..."
           placeholderTextColor={colors.textDim}
           value={search}
           onChangeText={setSearch}
         />
+      </View>
+
+      {/* Filter tabs */}
+      <View style={styles.filterBar}>
+        {FILTER_TABS.map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}
+            onPress={() => setActiveFilter(tab)}
+          >
+            <Text style={[styles.filterText, activeFilter === tab && styles.filterTextActive]}>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {loading ? (
@@ -170,7 +219,7 @@ export default function ActivityScreen() {
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
-          onEndReached={() => !search && hasMore && fetchLogs()}
+          onEndReached={() => !search && activeFilter === 'All' && hasMore && fetchLogs()}
           onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
@@ -181,7 +230,7 @@ export default function ActivityScreen() {
             />
           }
           ListFooterComponent={
-            !search && hasMore ? (
+            !search && activeFilter === 'All' && hasMore ? (
               <TouchableOpacity style={styles.loadMore} onPress={() => fetchLogs()}>
                 <Text style={styles.loadMoreText}>Load More</Text>
               </TouchableOpacity>
@@ -201,68 +250,102 @@ export default function ActivityScreen() {
 const createStyles = (colors: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    searchWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
+    searchWrap: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
     searchInput: {
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 10,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      borderRadius: RADIUS.lg,
+      paddingVertical: SPACING.md,
+      paddingHorizontal: SPACING.lg,
       color: colors.text,
-      fontSize: 14,
+      fontSize: FONT_SIZE.lg,
     },
+    filterBar: {
+      flexDirection: 'row',
+      paddingHorizontal: SPACING.lg,
+      paddingBottom: SPACING.md,
+      gap: SPACING.sm,
+    },
+    filterTab: {
+      flex: 1,
+      paddingVertical: SPACING.sm,
+      borderRadius: RADIUS.md,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    filterTabActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterText: {
+      fontSize: FONT_SIZE.xs,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    filterTextActive: { color: '#fff' },
     center: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
       paddingTop: 60,
     },
-    list: { paddingHorizontal: 14, paddingBottom: 24, gap: 10, paddingTop: 8 },
+    list: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md, gap: SPACING.md, paddingTop: SPACING.sm },
     logRow: {
       flexDirection: 'row',
       backgroundColor: colors.card,
-      borderRadius: 10,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: 'hidden',
+      alignItems: 'center',
     },
-    accentBar: { width: 3 },
-    logBody: { flex: 1, padding: 12 },
+    accentBar: { width: 3, alignSelf: 'stretch' },
+    iconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: RADIUS.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      margin: SPACING.md,
+      flexShrink: 0,
+    },
+    logBody: { flex: 1, paddingVertical: SPACING.md, paddingRight: SPACING.md },
     logTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: SPACING.xs,
     },
     badge: {
-      borderRadius: 5,
+      borderRadius: RADIUS.sm,
       borderWidth: 1,
       paddingHorizontal: 7,
       paddingVertical: 2,
       maxWidth: '65%',
     },
     badgeText: {
-      fontSize: 9,
+      fontSize: FONT_SIZE.xs,
       fontWeight: '700',
       letterSpacing: 0.5,
       textTransform: 'uppercase',
     },
     logTime: {
-      fontSize: 10,
+      fontSize: FONT_SIZE.xs,
       color: colors.textDark,
-      fontVariant: ['tabular-nums'],
     },
-    logDetail: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
+    logDetail: { fontSize: FONT_SIZE.md, color: colors.textMuted, lineHeight: 17 },
     loadMore: {
-      margin: 16,
+      margin: SPACING.lg,
       backgroundColor: colors.card,
-      borderRadius: 10,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       paddingVertical: 13,
       alignItems: 'center',
     },
-    loadMoreText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
-    emptyText: { color: colors.textDim, fontSize: 14 },
+    loadMoreText: { color: colors.primary, fontSize: FONT_SIZE.lg, fontWeight: '600' },
+    emptyText: { color: colors.textDim, fontSize: FONT_SIZE.lg },
   });

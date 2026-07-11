@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING } from '../styles/theme';
 import { CheckCircle } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -12,10 +12,10 @@ export default function ReportSuccessScreen({ route, navigation }: Props) {
   const { title = 'Success!', message = 'Your action was completed successfully.' } = route.params || {};
 
   const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background, padding: 20, justifyContent: 'center', alignItems: 'center' },
-    iconContainer: { marginBottom: 24, backgroundColor: colors.successBg, padding: 16, borderRadius: 40 },
-    title: { ...typography.title, marginBottom: 12, textAlign: 'center' },
-    subtitle: { ...typography.subtitle, marginBottom: 40, textAlign: 'center', maxWidth: '80%' },
+    container: { flex: 1, backgroundColor: colors.background, padding: SPACING.xl, justifyContent: 'center', alignItems: 'center' },
+    iconContainer: { marginBottom: SPACING.lg, backgroundColor: colors.successBg, padding: SPACING.lg, borderRadius: 40 },
+    title: { ...typography.title, marginBottom: SPACING.md, textAlign: 'center' },
+    subtitle: { ...typography.subtitle, marginBottom: SPACING.lg, textAlign: 'center', maxWidth: '80%' },
     button: { ...commonStyles.button, width: '100%' },
     buttonText: { ...commonStyles.buttonText },
   });

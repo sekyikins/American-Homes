@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { supabase, withTimeout } from '../lib/supabase';
 import { Lock } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -46,14 +46,15 @@ export default function ChangePasswordScreen({ navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
-    inputContainer: { marginBottom: 16 },
-    label: { ...typography.body, fontWeight: '600', marginBottom: 8, color: colors.text },
+    content: { paddingHorizontal: SPACING.lg },
+    inputContainer: { marginBottom: SPACING.lg },
+    label: { ...typography.body, fontWeight: '600', marginBottom: SPACING.sm, color: colors.text },
     input: { ...commonStyles.input },
-    button: { ...commonStyles.button, marginTop: 20, flexDirection: 'row', gap: 8 },
+    button: { ...commonStyles.button, flexDirection: 'row', gap: SPACING.sm },
     buttonText: { ...commonStyles.buttonText },
-    criteriaContainer: {borderWidth: 0.5, borderColor: colors.errorBorder, borderRadius: 10, marginTop: 8, padding: 5 },
-    passwordCriteria: { color: colors.errorText, marginTop: 4, paddingHorizontal: 4, fontSize: 12 },
+    criteriaContainer: { borderWidth: 0.5, borderColor: colors.errorBorder, borderRadius: RADIUS.lg, padding: SPACING.xs },
+    passwordCriteria: { color: colors.errorText, marginTop: SPACING.xs, paddingHorizontal: SPACING.xs, fontSize: FONT_SIZE.md },
+    actionPad: { padding: SPACING.lg },
   });
 
   return (
@@ -100,11 +101,13 @@ export default function ChangePasswordScreen({ navigation }: Props) {
             <Text style={styles.passwordCriteria}>* Password confirmation must match new password</Text>
           </View>
 
+      </ScrollView>
+      <View style={styles.actionPad}>
         <TouchableOpacity style={styles.button} onPress={handleChangePassword} disabled={loading} activeOpacity={0.8}>
           <Lock size={18} color="#fff" />
           <Text style={styles.buttonText}>{loading ? 'Changing...' : 'Change Password'}</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }

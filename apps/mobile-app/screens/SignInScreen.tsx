@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { supabase, withTimeout } from '../lib/supabase';
 import { useMockData } from '../context/MockDataContext';
 import { Image } from 'react-native';
@@ -13,37 +13,24 @@ interface SignInScreenProps {
 export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
   const { colors, typography, commonStyles } = useTheme();
   const mockData = useMockData();
-  const [email, setEmail] = useState('kwame@americanhomeventures.com');
+  const [email, setEmail] = useState('@americanhomeventures.com');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill all input fields.');
+      Alert.alert('Sign In Failed', 'Please fill in all fields');
       return;
     }
 
     setLoading(true);
-    let error: any = null;
     try {
-      const res = await withTimeout(
-        supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password })
       );
-      error = res.error;
-    } catch (err: any) {
-      error = err;
-    }
 
-    try {
       if (error) {
-        // Fallback to mock data authentication
-        const mockSuccess = mockData.signInMockUser(email, password);
-        if (!mockSuccess) {
-          throw error;
-        }
+        throw error;
       }
 
       onSignInSuccess();
@@ -58,19 +45,18 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
-      padding: 24,
+      padding: SPACING.xl,
       marginTop: '-25%',
       justifyContent: 'center',
     },
     logoContainer: {
-      marginTop: 40,
-      marginBottom: 20,
+      marginVertical: SPACING.lg,
       alignItems: 'center',
     },
     logo: {
       width: 80,
       height: 80,
-      borderRadius: 16,
+      borderRadius: RADIUS.lg,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -81,21 +67,19 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
     title: {
       ...typography.title,
       textAlign: 'center',
-      fontSize: 28,
-      marginBottom: 4,
+      fontSize: FONT_SIZE.hero + 4,
     },
     subtitle: {
       ...typography.subtitle,
-      marginBottom: 32,
       textAlign: 'center',
     },
     inputContainer: {
-      marginBottom: 16,
+      marginBottom: SPACING.lg,
     },
     label: {
       ...typography.body,
       fontWeight: '600',
-      marginBottom: 8,
+      marginBottom: SPACING.xs,
       color: colors.text,
     },
     input: {
@@ -103,7 +87,6 @@ export default function SignInScreen({ onSignInSuccess }: SignInScreenProps) {
     },
     button: {
       ...commonStyles.button,
-      marginTop: 8,
     },
     buttonText: {
       ...commonStyles.buttonText,

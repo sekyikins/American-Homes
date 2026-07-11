@@ -64,7 +64,7 @@ export default function SyncCenterScreen({ navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: SPACING.lg, paddingBottom: 40 },
+    content: { padding: SPACING.lg, flex: 1 },
 
     // All-synced state
     syncedBanner: {
@@ -94,7 +94,7 @@ export default function SyncCenterScreen({ navigation }: Props) {
       justifyContent: 'center',
       backgroundColor: colors.successBg,
       borderRadius: RADIUS.lg,
-      paddingVertical: SPACING.md + 2,
+      paddingVertical: SPACING.md,
       gap: SPACING.sm,
     },
     syncedBtnText: {
@@ -116,7 +116,7 @@ export default function SyncCenterScreen({ navigation }: Props) {
       fontSize: FONT_SIZE.xl,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 4,
+      marginBottom: SPACING.xs,
     },
     summaryText: {
       fontSize: FONT_SIZE.body,
@@ -153,18 +153,18 @@ export default function SyncCenterScreen({ navigation }: Props) {
     activityDescription: {
       fontSize: FONT_SIZE.md,
       color: colors.textMuted,
-      marginTop: 4,
+      marginTop: SPACING.xs,
     },
     activityTimestamp: {
       fontSize: FONT_SIZE.sm,
       color: colors.textMuted,
-      marginTop: 6,
+      marginTop: SPACING.sm,
     },
     syncBtn: {
       marginTop: SPACING.lg,
       backgroundColor: colors.primary,
       borderRadius: RADIUS.lg,
-      paddingVertical: SPACING.md + 2,
+      paddingVertical: SPACING.md,
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'row',
@@ -181,7 +181,7 @@ export default function SyncCenterScreen({ navigation }: Props) {
   });
 
   // ── All Synced state ───────────────────────────────────────────────────────
-  if (synced && offlineActivities.length === 0) {
+  if (offlineActivities.length === 0) {
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -195,11 +195,25 @@ export default function SyncCenterScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.syncedBtn} onPress={handleResync} activeOpacity={0.8}>
-            <RefreshCw size={18} color={colors.successText} />
-            <Text style={styles.syncedBtnText}>All Synced</Text>
+          {/* Separate Demo Button to reload mock data */}
+          <TouchableOpacity 
+            style={{ padding: SPACING.md, alignItems: 'center' }} 
+            onPress={handleResync} 
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: FONT_SIZE.body }}>
+              [Demo Mode] Load Sample Offline Activities
+            </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        <View style={{padding: SPACING.lg}}>
+          {/* Unclickable / Disabled All Synced button */}
+          <View style={[styles.syncedBtn, { opacity: 0.5, backgroundColor: colors.border }]} pointerEvents="none">
+            <CheckCircle size={18} color={colors.textDim} />
+            <Text style={[styles.syncedBtnText, { color: colors.textDim }]}>All Synced</Text>
+          </View>
+        </View>
       </View>
     );
   }
@@ -262,7 +276,9 @@ export default function SyncCenterScreen({ navigation }: Props) {
             </View>
           </View>
         )}
+      </ScrollView>
 
+      <View style={{padding: SPACING.lg}}>
         {/* Sync Button */}
         {offlineActivities.length > 0 && (
           <TouchableOpacity
@@ -275,7 +291,7 @@ export default function SyncCenterScreen({ navigation }: Props) {
             <Text style={styles.syncBtnText}>Sync Now ({selectedIds.length})</Text>
           </TouchableOpacity>
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }

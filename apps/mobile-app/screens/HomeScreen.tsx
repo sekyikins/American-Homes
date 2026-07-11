@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
@@ -20,12 +19,11 @@ import {
   Circle,
   Users,
   ShoppingBag,
-  FileText,
-  RefreshCw,
 } from 'lucide-react-native';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import EmptyState from '../components/EmptyState';
+import StickyScrollView from '../components/StickyScrollView';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -35,7 +33,7 @@ const INDIGO_END = '#6366f1';
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { tasks, toggleTaskStatus, shipments, notifications, currentUser, customers, orders, offlineActivities } = useMockData();
+  const { tasks, toggleTaskStatus, shipments, notifications, currentUser, customers, orders } = useMockData();
   const { colors, typography, commonStyles } = useTheme();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -60,11 +58,17 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <StickyScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
       >
         {/* Wallet Balance Card — intentional branded gradient */}
@@ -101,7 +105,7 @@ export default function HomeScreen() {
             onPress={() => navigation.navigate('TasksAndAlerts', { initialTab: 'alerts' })}
             activeOpacity={0.8}
           >
-            <View style={{marginTop: 2}}>
+            <View>
               <TriangleAlert size={14} color={colors.error} />
             </View>
             <Text style={styles.alertText}>{alertNotification.body}</Text>
@@ -112,99 +116,78 @@ export default function HomeScreen() {
         )}
 
         {/* Assigned Tasks */}
-        <View style={styles.section}>
-          <SectionHeader
-            title="Assigned Tasks"
-            variant="compact"
-            viewAllLabel="VIEW ALL"
-            onViewAll={() => navigation.navigate('TasksAndAlerts')}
-          />
-          <View style={styles.taskList}>
-            {visibleTasks.map((task) => {
-              const done = task.status === 'completed';
-              return (
-                <TouchableOpacity
-                  key={task.id}
-                  style={styles.taskRow}
-                  onPress={() => toggleTaskStatus(task.id)}
-                  activeOpacity={0.75}
-                >
-                  {done ? (
-                    <CircleCheck size={18} color={colors.success} />
-                  ) : (
-                    <Circle size={18} color={colors.primary} strokeWidth={1.5} />
-                  )}
-                  <Text style={[styles.taskText, done && styles.taskTextDone]} numberOfLines={1}>
-                    {task.title}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            {visibleTasks.length === 0 && (
-              <EmptyState message="No tasks assigned" />
-            )}
-          </View>
+        <SectionHeader
+          title="Assigned Tasks"
+          variant="compact"
+          viewAllLabel="VIEW ALL"
+          onViewAll={() => navigation.navigate('TasksAndAlerts')}
+        />
+        <View style={styles.taskList}>
+          {visibleTasks.map((task) => {
+            const done = task.status === 'completed';
+            return (
+              <TouchableOpacity
+                key={task.id}
+                style={styles.taskRow}
+                onPress={() => toggleTaskStatus(task.id)}
+                activeOpacity={0.75}
+              >
+                {done ? (
+                  <CircleCheck size={18} color={colors.success} />
+                ) : (
+                  <Circle size={18} color={colors.primary} strokeWidth={1.5} />
+                )}
+                <Text style={[styles.taskText, done && styles.taskTextDone]} numberOfLines={1}>
+                  {task.title}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          {visibleTasks.length === 0 && (
+            <EmptyState message="No tasks assigned" />
+          )}
         </View>
 
         {/* Shipment Status */}
-        <View style={styles.section}>
-          <SectionHeader title="Shipment Status" variant="compact" />
-          <View style={styles.shipmentList}>
-            {activeShipments.map((s) => {
-              return (
-                <TouchableOpacity
-                  key={s.id}
-                  style={styles.shipmentCard}
-                  onPress={() => navigation.navigate('ShipmentDetail', { shipmentId: s.id })}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.shipmentTopRow}>
-                    <Text style={styles.shipmentCode}>{s.shipment_code}</Text>
-                    <StatusBadge status={s.status} />
-                  </View>
-                  <Text style={styles.shipmentSupplier}>{s.supplier_name || s.supplier_country}</Text>
-                  {s.arrival_date != null && (
-                    <Text style={styles.shipmentEta}>ETA: {s.arrival_date}</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-            {activeShipments.length === 0 && (
-              <EmptyState message="No active shipments" style={{ paddingVertical: SPACING.md }} />
-            )}
-          </View>
+        <SectionHeader title="Shipment Status" variant="compact" />
+        <View style={styles.shipmentList}>
+          {activeShipments.map((s) => {
+            return (
+              <TouchableOpacity
+                key={s.id}
+                style={styles.shipmentCard}
+                onPress={() => navigation.navigate('ShipmentDetail', { shipmentId: s.id })}
+                activeOpacity={0.8}
+              >
+                <View style={styles.shipmentTopRow}>
+                  <Text style={styles.shipmentCode}>{s.shipment_code}</Text>
+                  <StatusBadge status={s.status} />
+                </View>
+                <Text style={styles.shipmentSupplier}>{s.supplier_name || s.supplier_country}</Text>
+                {s.arrival_date != null && (
+                  <Text style={styles.shipmentEta}>ETA: {s.arrival_date}</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+          {activeShipments.length === 0 && (
+            <EmptyState message="No active shipments" style={{ paddingVertical: SPACING.md }} />
+          )}
         </View>
 
         {/* Quick Access Grid */}
-        <View style={styles.section}>
-          <SectionHeader title="Quick Access" variant="compact" />
-          <View style={styles.quickGrid}>
-            <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Customers')} activeOpacity={0.8}>
-              <View style={styles.quickIconBox}><Users size={15} color={colors.primary} /></View>
-              <View><Text style={styles.quickLabel}>Customers</Text><Text style={styles.quickSub}>{customers.length} accounts</Text></View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Orders')} activeOpacity={0.8}>
-              <View style={styles.quickIconBox}><ShoppingBag size={15} color={colors.primary} /></View>
-              <View><Text style={styles.quickLabel}>Orders</Text><Text style={styles.quickSub}>{orders.length} total</Text></View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Reports')} activeOpacity={0.8}>
-              <View style={styles.quickIconBox}><FileText size={15} color={colors.primary} /></View>
-              <View><Text style={styles.quickLabel}>Reports</Text><Text style={styles.quickSub}>Log a report</Text></View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('SyncCenter')} activeOpacity={0.8}>
-              <View style={styles.quickIconBox}><RefreshCw size={15} color={colors.primary} /></View>
-              <View>
-                <Text style={styles.quickLabel}>Sync Center</Text>
-                <Text style={styles.quickSub}>
-                  {offlineActivities.length === 0 ? 'All synced' : `${offlineActivities.length} pending`}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+        <SectionHeader title="Quick Access" variant="compact" />
+        <View style={styles.quickGrid}>
+          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Customers')} activeOpacity={0.8}>
+            <View style={styles.quickIconBox}><Users size={15} color={colors.primary} /></View>
+            <View><Text style={styles.quickLabel}>Customers</Text><Text style={styles.quickSub}>{customers.length} accounts</Text></View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('Orders')} activeOpacity={0.8}>
+            <View style={styles.quickIconBox}><ShoppingBag size={15} color={colors.primary} /></View>
+            <View><Text style={styles.quickLabel}>Orders</Text><Text style={styles.quickSub}>{orders.length} total</Text></View>
+          </TouchableOpacity>
         </View>
-
-        <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+      </StickyScrollView>
     </View>
   );
 }
@@ -212,7 +195,8 @@ export default function HomeScreen() {
 const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   // ── Layout ──────────────────────────────────────────────────────────────────
   container: { ...cs.container },
-  scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg, paddingBottom: 0 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: SPACING.lg },
 
   // ── Wallet Card (branded gradient — colors are intentional) ─────────────────
   walletCard: { borderRadius: RADIUS.lg + 4, padding: SPACING.lg, marginBottom: SPACING.md },
@@ -223,11 +207,8 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   walletBtnText: { fontSize: FONT_SIZE.md, fontWeight: '600', color: '#ffffff' },
 
   // ── Alert Banner ────────────────────────────────────────────────────────────
-  alertBanner: { ...cs.alertBanner, marginBottom: 18, maxHeight: 90 },
+  alertBanner: { ...cs.alertBanner, maxHeight: 90 },
   alertText: { ...cs.alertText },
-
-  // ── Sections ────────────────────────────────────────────────────────────────
-  section: { marginBottom: 18 },
 
   // ── Tasks ───────────────────────────────────────────────────────────────────
   taskList: { gap: SPACING.sm },
@@ -241,12 +222,12 @@ const createStyles = (colors: any, cs: any, typo: any) => StyleSheet.create({
   shipmentTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shipmentCode: { ...typo.mono },
   shipmentSupplier: { fontSize: FONT_SIZE.body, fontWeight: '600', color: colors.text, marginTop: SPACING.xs },
-  shipmentEta: { fontSize: FONT_SIZE.sm, color: colors.primary, marginTop: 3 },
+  shipmentEta: { fontSize: FONT_SIZE.sm, color: colors.primary},
 
   // ── Quick Access Grid ───────────────────────────────────────────────────────
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  quickCard: { width: '47.5%', flexDirection: 'row', alignItems: 'center', gap: 10, ...cs.cardPadded, borderRadius: RADIUS.xl, padding: SPACING.md },
+  quickCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, ...cs.cardPadded, borderRadius: RADIUS.xl, padding: SPACING.md },
   quickIconBox: { ...cs.quickIconBox },
   quickLabel: { fontSize: FONT_SIZE.md, fontWeight: '600', color: colors.text },
-  quickSub: { fontSize: FONT_SIZE.sm, color: colors.primary, marginTop: 1 },
+  quickSub: { fontSize: FONT_SIZE.sm, color: colors.primary },
 });

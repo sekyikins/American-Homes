@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { AlertTriangle, ChevronDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,32 +10,21 @@ import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportShipment'>;
 
-const issueTypes = [
-  'Incomplete inventory count',
-  'Damaged shipment container',
-  'Supplier delay',
-  'Customs block / hold',
-  'Wrong products inside packaging',
-  'Pricing / invoice mismatch',
-  'Other issue',
-];
-
 export default function ReportShipmentScreen({ route, navigation }: Props) {
   const { colors, typography, commonStyles } = useTheme();
   const { shipments, addShipmentReport } = useMockData();
-
   const initialShipmentId = route.params?.shipmentId;
 
   const [shipmentId, setShipmentId] = useState(initialShipmentId || shipments[0]?.id || '');
-  const [issueType, setIssueType] = useState(issueTypes[0]);
+  const [issueType, setIssueType] = useState('Delay');
   const [description, setDescription] = useState('');
-
   const [showShipmentPicker, setShowShipmentPicker] = useState(false);
   const [showIssuePicker, setShowIssuePicker] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
   const selectedShipment = shipments.find(s => s.id === shipmentId);
+  const issueTypes = ['Delay', 'Damage', 'Missing Items', 'Customs Hold', 'Other'];
 
   const handleSubmit = () => {
     if (!shipmentId || !issueType || !description) {
@@ -46,25 +35,25 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
     addShipmentReport(shipmentId, issueType, description);
 
     setDescription('');
-    setSuccessMsg(`Your report regarding shipment ${selectedShipment?.shipment_code || ''} has been sent to operations control.`);
+    setSuccessMsg(`Shipment issue report submitted for ${selectedShipment?.shipment_code || 'shipment'}.`);
     setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
-    formGroup: { marginBottom: 18 },
-    label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8 },
+    content: { paddingHorizontal: SPACING.lg },
+    formGroup: { marginBottom: SPACING.xl },
+    label: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.textMuted, marginBottom: SPACING.sm },
     pickerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
     },
-    pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
+    pickerBtnText: { flex: 1, fontSize: FONT_SIZE.xl, color: colors.text },
     input: { ...commonStyles.input },
     textArea: {
       ...commonStyles.input,
@@ -79,23 +68,24 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
       bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
-      padding: 20,
+      padding: SPACING.xl,
       zIndex: 1000,
     },
     pickerModal: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       maxHeight: '60%',
-      padding: 8,
+      padding: SPACING.sm,
     },
     pickerItem: {
-      padding: 14,
+      padding: SPACING.lg,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    pickerItemText: { fontSize: 15, color: colors.text },
+    pickerItemText: { fontSize: FONT_SIZE.xl, color: colors.text },
+    actionPad: { padding: SPACING.lg },
   });
 
   return (
@@ -135,15 +125,16 @@ export default function ReportShipmentScreen({ route, navigation }: Props) {
           />
         </View>
 
+      </ScrollView>
+      <View style={styles.actionPad}>
         <AppButton
           label="Submit Shipment Report"
           onPress={handleSubmit}
           variant="primary"
           icon={<AlertTriangle size={20} color="#fff" />}
           fullWidth
-          style={{ marginTop: 20, backgroundColor: colors.pending }}
         />
-      </ScrollView>
+      </View>
 
       {/* Shipment Modal */}
       {showShipmentPicker && (

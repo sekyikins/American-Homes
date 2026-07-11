@@ -3,11 +3,6 @@
  * ─────────────────────────────────────────────────
  * Usage:
  *   node supabase/seed.mjs <SERVICE_ROLE_KEY>
- *
- * The SERVICE_ROLE_KEY can be found in your Supabase project dashboard:
- *   Settings → API → Project API keys → service_role (secret)
- *
- * This script uses the service role key so that RLS is bypassed for the insert.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -25,212 +20,514 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-// ─── helpers ───────────────────────────────────────────────────────────────
-
-async function insert(table, rows, label) {
-  const { error } = await supabase.from(table).upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
-  if (error) {
-    console.error(`  ❌  ${label}:`, error.message);
-  } else {
-    console.log(`  ✅  ${label} (${rows.length} rows)`);
-  }
+// Helper for generating UUIDs
+function makeUuid(prefix, index) {
+  const pad = (num, size) => ('000000000000' + num).substr(-size);
+  return `${prefix}-0000-0000-0000-${pad(index, 12)}`;
 }
 
-async function insertNoId(table, rows, label) {
-  // For tables without a fixed-id seed (ledger, payments, expenses)
-  // we check row count first to avoid duplication on re-runs.
-  const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-  if (count > 0) {
-    console.log(`  ⏭   ${label} — already seeded (${count} rows), skipping`);
-    return;
+async function cleanDatabase() {
+  console.log('🧹 Cleaning existing tables...');
+
+  // Delete all tasks, notifications, alerts, reports
+  await supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('alerts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('discrepancy_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('damage_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('shipment_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  // Delete transaction-related data
+  await supabase.from('audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('wallet_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('withdrawals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('credit_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('credit_accounts').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  // Delete inventory
+  await supabase.from('inventory_units').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('inventory_ledger').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('inventory_batches').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('shipment_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('shipments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  // Delete catalog
+  await supabase.from('product_variants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+  // Clean auth users ending with @americanhomeventures.com
+  const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers({ perPage: 100 });
+  if (listError) {
+    console.error('❌ Error listing auth users:', listError.message);
+  } else if (authUsers && authUsers.users) {
+    for (const u of authUsers.users) {
+      if (u.email && u.email.endsWith('@americanhomeventures.com')) {
+        await supabase.auth.admin.deleteUser(u.id);
+      }
+    }
   }
-  const { error } = await supabase.from(table).insert(rows);
-  if (error) {
-    console.error(`  ❌  ${label}:`, error.message);
-  } else {
-    console.log(`  ✅  ${label} (${rows.length} rows)`);
-  }
+  console.log('✅ Clean complete.');
 }
-
-// ─── data ──────────────────────────────────────────────────────────────────
-
-const customers = [
-  { id: '11111111-0000-0000-0000-000000000001', name: 'Marcus Reynolds',  phone: '+1-512-555-0101', address: '402 Lavaca St, Austin, TX 78701' },
-  { id: '11111111-0000-0000-0000-000000000002', name: 'Sandra Okafor',    phone: '+1-512-555-0102', address: '815 Congress Ave, Austin, TX 78701' },
-  { id: '11111111-0000-0000-0000-000000000003', name: 'Derek Nguyen',     phone: '+1-512-555-0103', address: '1200 Barton Springs Rd, Austin, TX 78704' },
-  { id: '11111111-0000-0000-0000-000000000004', name: 'Priya Mehta',      phone: '+1-512-555-0104', address: '300 W 6th St, Austin, TX 78701' },
-  { id: '11111111-0000-0000-0000-000000000005', name: 'Luis Castellano',  phone: '+1-512-555-0105', address: '950 E 11th St, Austin, TX 78702' },
-  { id: '11111111-0000-0000-0000-000000000006', name: 'Claire Bouchard',  phone: '+1-512-555-0106', address: '2301 S Lamar Blvd, Austin, TX 78704' },
-  { id: '11111111-0000-0000-0000-000000000007', name: 'Anthony Osei',     phone: '+1-512-555-0107', address: '6000 Middle Fiskville Rd, Austin, TX 78752' },
-  { id: '11111111-0000-0000-0000-000000000008', name: 'Fatima Al-Rashid', phone: '+1-512-555-0108', address: '5501 Airport Blvd, Austin, TX 78751' },
-  { id: '11111111-0000-0000-0000-000000000009', name: 'James Whitfield',  phone: '+1-512-555-0109', address: '7901 Cameron Rd, Austin, TX 78754' },
-  { id: '11111111-0000-0000-0000-000000000010', name: 'Yuki Tanaka',      phone: '+1-512-555-0110', address: '11501 Domain Dr, Austin, TX 78758' },
-];
-
-const products = [
-  { id: '22222222-0000-0000-0000-000000000001', name: 'Samsung 65" 4K QLED TV',    category: 'Electronics', has_serial: true,  description: 'Samsung QN65QN90B Neo QLED 4K Smart TV' },
-  { id: '22222222-0000-0000-0000-000000000002', name: 'LG Refrigerator 28 cu ft',   category: 'Appliances',  has_serial: true,  description: 'LG LRMVS3006S French Door Refrigerator' },
-  { id: '22222222-0000-0000-0000-000000000003', name: 'Whirlpool Washer/Dryer Set', category: 'Appliances',  has_serial: true,  description: 'Whirlpool WFW5000HW 4.5 Cu Ft front load washer and dryer combo' },
-  { id: '22222222-0000-0000-0000-000000000004', name: 'Dyson V15 Detect Vacuum',    category: 'Electronics', has_serial: true,  description: 'Dyson V15 Detect Absolute cordless vacuum' },
-  { id: '22222222-0000-0000-0000-000000000005', name: 'Apple MacBook Air M3 13"',   category: 'Computers',   has_serial: true,  description: 'Apple MacBook Air with M3 chip, 8GB unified memory' },
-  { id: '22222222-0000-0000-0000-000000000006', name: 'Bamboo Cutting Board Set',   category: 'Kitchen',     has_serial: false, description: 'Premium 3-piece bamboo cutting board set' },
-  { id: '22222222-0000-0000-0000-000000000007', name: 'Memory Foam Pillow',         category: 'Bedding',     has_serial: false, description: 'Queen size cooling gel memory foam pillow, 2-pack' },
-  { id: '22222222-0000-0000-0000-000000000008', name: 'Cast Iron Skillet 12"',      category: 'Kitchen',     has_serial: false, description: 'Pre-seasoned Lodge cast iron skillet, 12 inch' },
-  { id: '22222222-0000-0000-0000-000000000009', name: 'LED Smart Bulb 4-Pack',      category: 'Lighting',    has_serial: false, description: 'Govee RGBIC Smart Bulbs, 60W equivalent' },
-  { id: '22222222-0000-0000-0000-000000000010', name: 'Weighted Blanket 15lb',      category: 'Bedding',     has_serial: false, description: 'YnM 15lb weighted blanket, 60x80 inches' },
-];
-
-const variants = [
-  { id: '33333333-0000-0000-0000-000000000001', product_id: '22222222-0000-0000-0000-000000000001', variant_name: '65" QLED - Black',       sku: 'SAMS-TV-65-BLK',  barcode: '0887276766669', retail_price: 1299.99, wholesale_price: 890.00,  commission_amount: 45.00 },
-  { id: '33333333-0000-0000-0000-000000000002', product_id: '22222222-0000-0000-0000-000000000002', variant_name: '28 cu ft - Steel',        sku: 'LG-FRG-28-STL',   barcode: '0048231781234', retail_price: 1899.99, wholesale_price: 1350.00, commission_amount: 60.00 },
-  { id: '33333333-0000-0000-0000-000000000003', product_id: '22222222-0000-0000-0000-000000000003', variant_name: 'Washer+Dryer Set',        sku: 'WHP-WD-SET-WHT',  barcode: '0883049486312', retail_price: 1599.99, wholesale_price: 1100.00, commission_amount: 55.00 },
-  { id: '33333333-0000-0000-0000-000000000004', product_id: '22222222-0000-0000-0000-000000000004', variant_name: 'V15 Detect - Gold',       sku: 'DYS-V15-GOLD',    barcode: '0885609024783', retail_price:  749.99, wholesale_price:  520.00, commission_amount: 25.00 },
-  { id: '33333333-0000-0000-0000-000000000005', product_id: '22222222-0000-0000-0000-000000000005', variant_name: 'M3 8GB/256GB - Midnight', sku: 'APL-MBA-M3-256-MN',barcode: '0194253767572', retail_price: 1099.99, wholesale_price:  850.00, commission_amount: 35.00 },
-  { id: '33333333-0000-0000-0000-000000000006', product_id: '22222222-0000-0000-0000-000000000005', variant_name: 'M3 16GB/512GB - Silver',  sku: 'APL-MBA-M3-512-SL',barcode: '0194253767589', retail_price: 1499.99, wholesale_price: 1180.00, commission_amount: 50.00 },
-  { id: '33333333-0000-0000-0000-000000000007', product_id: '22222222-0000-0000-0000-000000000006', variant_name: '3-Piece Set - Natural',   sku: 'KIT-CB-3PC-NAT',  barcode: '0763720249841', retail_price:   34.99, wholesale_price:   18.00, commission_amount:  0.00 },
-  { id: '33333333-0000-0000-0000-000000000008', product_id: '22222222-0000-0000-0000-000000000007', variant_name: 'Queen - White 2-Pack',    sku: 'BED-MFP-QN-WHT',  barcode: '0840018400012', retail_price:   59.99, wholesale_price:   32.00, commission_amount:  0.00 },
-  { id: '33333333-0000-0000-0000-000000000009', product_id: '22222222-0000-0000-0000-000000000008', variant_name: '12" - Black Seasoned',    sku: 'KIT-CI-12-BLK',   barcode: '0078742064482', retail_price:   44.99, wholesale_price:   24.00, commission_amount:  0.00 },
-  { id: '33333333-0000-0000-0000-000000000010', product_id: '22222222-0000-0000-0000-000000000009', variant_name: 'A19 RGBIC 4-Pack',        sku: 'LIT-LED-4PK-RGB', barcode: '0840095800142', retail_price:   39.99, wholesale_price:   20.00, commission_amount:  0.00 },
-  { id: '33333333-0000-0000-0000-000000000011', product_id: '22222222-0000-0000-0000-000000000010', variant_name: '15lb 60x80 - Dark Grey',  sku: 'BED-WB-15-GRY',   barcode: '0760158400012', retail_price:   69.99, wholesale_price:   38.00, commission_amount:  0.00 },
-];
-
-const shipments = [
-  { id: '44444444-0000-0000-0000-000000000001', shipment_code: 'SHP-2025-001', supplier_country: 'USA', status: 'received',   arrival_date: '2025-11-12', total_cost: 28500.00 },
-  { id: '44444444-0000-0000-0000-000000000002', shipment_code: 'SHP-2025-002', supplier_country: 'USA', status: 'received',   arrival_date: '2025-12-03', total_cost: 15200.00 },
-  { id: '44444444-0000-0000-0000-000000000003', shipment_code: 'SHP-2026-001', supplier_country: 'USA', status: 'received',   arrival_date: '2026-01-15', total_cost: 34800.00 },
-  { id: '44444444-0000-0000-0000-000000000004', shipment_code: 'SHP-2026-002', supplier_country: 'USA', status: 'in_transit', arrival_date: null,         total_cost: 18000.00 },
-];
-
-const batches = [
-  { id: '55555555-0000-0000-0000-000000000001', product_id: '22222222-0000-0000-0000-000000000001', shipment_id: '44444444-0000-0000-0000-000000000001', quantity_received:   8, remaining_quantity:  6, cost_price:  890.00 },
-  { id: '55555555-0000-0000-0000-000000000002', product_id: '22222222-0000-0000-0000-000000000002', shipment_id: '44444444-0000-0000-0000-000000000001', quantity_received:   5, remaining_quantity:  4, cost_price: 1350.00 },
-  { id: '55555555-0000-0000-0000-000000000003', product_id: '22222222-0000-0000-0000-000000000003', shipment_id: '44444444-0000-0000-0000-000000000002', quantity_received:   6, remaining_quantity:  5, cost_price: 1100.00 },
-  { id: '55555555-0000-0000-0000-000000000004', product_id: '22222222-0000-0000-0000-000000000004', shipment_id: '44444444-0000-0000-0000-000000000002', quantity_received:  10, remaining_quantity:  8, cost_price:  520.00 },
-  { id: '55555555-0000-0000-0000-000000000005', product_id: '22222222-0000-0000-0000-000000000005', shipment_id: '44444444-0000-0000-0000-000000000003', quantity_received:  12, remaining_quantity: 10, cost_price:  850.00 },
-  { id: '55555555-0000-0000-0000-000000000006', product_id: '22222222-0000-0000-0000-000000000006', shipment_id: '44444444-0000-0000-0000-000000000003', quantity_received:  80, remaining_quantity: 72, cost_price:   18.00 },
-  { id: '55555555-0000-0000-0000-000000000007', product_id: '22222222-0000-0000-0000-000000000007', shipment_id: '44444444-0000-0000-0000-000000000003', quantity_received:  60, remaining_quantity: 55, cost_price:   32.00 },
-  { id: '55555555-0000-0000-0000-000000000008', product_id: '22222222-0000-0000-0000-000000000008', shipment_id: '44444444-0000-0000-0000-000000000001', quantity_received:  40, remaining_quantity: 33, cost_price:   24.00 },
-  { id: '55555555-0000-0000-0000-000000000009', product_id: '22222222-0000-0000-0000-000000000009', shipment_id: '44444444-0000-0000-0000-000000000002', quantity_received: 100, remaining_quantity: 88, cost_price:   20.00 },
-  { id: '55555555-0000-0000-0000-000000000010', product_id: '22222222-0000-0000-0000-000000000010', shipment_id: '44444444-0000-0000-0000-000000000003', quantity_received:  50, remaining_quantity: 44, cost_price:   38.00 },
-];
-
-const units = [
-  // Samsung TVs — batch 1
-  { id: '66666666-0000-0000-0000-000000000001', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-001', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000002', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-002', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000003', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-003', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000004', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-004', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000005', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-005', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000006', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-006', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000007', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-007', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000008', batch_id: '55555555-0000-0000-0000-000000000001', serial_number: 'SAM-TV-2025-008', status: 'available' },
-  // LG Fridge — batch 2
-  { id: '66666666-0000-0000-0000-000000000009', batch_id: '55555555-0000-0000-0000-000000000002', serial_number: 'LG-FRG-2025-001', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000010', batch_id: '55555555-0000-0000-0000-000000000002', serial_number: 'LG-FRG-2025-002', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000011', batch_id: '55555555-0000-0000-0000-000000000002', serial_number: 'LG-FRG-2025-003', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000012', batch_id: '55555555-0000-0000-0000-000000000002', serial_number: 'LG-FRG-2025-004', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000013', batch_id: '55555555-0000-0000-0000-000000000002', serial_number: 'LG-FRG-2025-005', status: 'available' },
-  // Whirlpool — batch 3
-  { id: '66666666-0000-0000-0000-000000000014', batch_id: '55555555-0000-0000-0000-000000000003', serial_number: 'WHP-WD-2025-001', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000015', batch_id: '55555555-0000-0000-0000-000000000003', serial_number: 'WHP-WD-2025-002', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000016', batch_id: '55555555-0000-0000-0000-000000000003', serial_number: 'WHP-WD-2025-003', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000017', batch_id: '55555555-0000-0000-0000-000000000003', serial_number: 'WHP-WD-2025-004', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000018', batch_id: '55555555-0000-0000-0000-000000000003', serial_number: 'WHP-WD-2025-005', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000019', batch_id: '55555555-0000-0000-0000-000000000003', serial_number: 'WHP-WD-2025-006', status: 'available' },
-  // Dyson — batch 4
-  { id: '66666666-0000-0000-0000-000000000020', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-001', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000021', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-002', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000022', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-003', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000023', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-004', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000024', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-005', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000025', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-006', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000026', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-007', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000027', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-008', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000028', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-009', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000029', batch_id: '55555555-0000-0000-0000-000000000004', serial_number: 'DYS-V15-2025-010', status: 'available' },
-  // MacBook — batch 5
-  { id: '66666666-0000-0000-0000-000000000030', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-001', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000031', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-002', status: 'sold' },
-  { id: '66666666-0000-0000-0000-000000000032', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-003', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000033', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-004', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000034', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-005', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000035', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-006', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000036', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-007', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000037', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-008', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000038', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-009', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000039', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-010', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000040', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-011', status: 'available' },
-  { id: '66666666-0000-0000-0000-000000000041', batch_id: '55555555-0000-0000-0000-000000000005', serial_number: 'APL-MBA-2026-012', status: 'available' },
-];
-
-const ledgerEntries = [
-  { product_id: '22222222-0000-0000-0000-000000000001', batch_id: '55555555-0000-0000-0000-000000000001', type: 'IN', quantity: 8,   reference_id: 'SHP-2025-001' },
-  { product_id: '22222222-0000-0000-0000-000000000002', batch_id: '55555555-0000-0000-0000-000000000002', type: 'IN', quantity: 5,   reference_id: 'SHP-2025-001' },
-  { product_id: '22222222-0000-0000-0000-000000000003', batch_id: '55555555-0000-0000-0000-000000000003', type: 'IN', quantity: 6,   reference_id: 'SHP-2025-002' },
-  { product_id: '22222222-0000-0000-0000-000000000004', batch_id: '55555555-0000-0000-0000-000000000004', type: 'IN', quantity: 10,  reference_id: 'SHP-2025-002' },
-  { product_id: '22222222-0000-0000-0000-000000000005', batch_id: '55555555-0000-0000-0000-000000000005', type: 'IN', quantity: 12,  reference_id: 'SHP-2026-001' },
-  { product_id: '22222222-0000-0000-0000-000000000006', batch_id: '55555555-0000-0000-0000-000000000006', type: 'IN', quantity: 80,  reference_id: 'SHP-2026-001' },
-  { product_id: '22222222-0000-0000-0000-000000000007', batch_id: '55555555-0000-0000-0000-000000000007', type: 'IN', quantity: 60,  reference_id: 'SHP-2026-001' },
-  { product_id: '22222222-0000-0000-0000-000000000008', batch_id: '55555555-0000-0000-0000-000000000008', type: 'IN', quantity: 40,  reference_id: 'SHP-2025-001' },
-  { product_id: '22222222-0000-0000-0000-000000000009', batch_id: '55555555-0000-0000-0000-000000000009', type: 'IN', quantity: 100, reference_id: 'SHP-2025-002' },
-  { product_id: '22222222-0000-0000-0000-000000000010', batch_id: '55555555-0000-0000-0000-000000000010', type: 'IN', quantity: 50,  reference_id: 'SHP-2026-001' },
-];
-
-const orders = [
-  { id: '77777777-0000-0000-0000-000000000001', customer_id: '11111111-0000-0000-0000-000000000001', total_amount: 1299.99, payment_status: 'paid',    created_at: '2025-11-20T09:15:00Z' },
-  { id: '77777777-0000-0000-0000-000000000002', customer_id: '11111111-0000-0000-0000-000000000002', total_amount: 1899.99, payment_status: 'paid',    created_at: '2025-11-22T14:30:00Z' },
-  { id: '77777777-0000-0000-0000-000000000003', customer_id: '11111111-0000-0000-0000-000000000003', total_amount: 1599.99, payment_status: 'partial', created_at: '2025-12-05T11:00:00Z' },
-  { id: '77777777-0000-0000-0000-000000000004', customer_id: '11111111-0000-0000-0000-000000000004', total_amount:  749.99, payment_status: 'paid',    created_at: '2025-12-10T16:45:00Z' },
-  { id: '77777777-0000-0000-0000-000000000005', customer_id: '11111111-0000-0000-0000-000000000005', total_amount: 1099.99, payment_status: 'credit',  created_at: '2026-01-18T10:00:00Z' },
-  { id: '77777777-0000-0000-0000-000000000006', customer_id: '11111111-0000-0000-0000-000000000006', total_amount: 1299.99, payment_status: 'paid',    created_at: '2026-01-22T13:20:00Z' },
-  { id: '77777777-0000-0000-0000-000000000007', customer_id: '11111111-0000-0000-0000-000000000007', total_amount:  189.97, payment_status: 'paid',    created_at: '2026-02-03T09:45:00Z' },
-  { id: '77777777-0000-0000-0000-000000000008', customer_id: '11111111-0000-0000-0000-000000000008', total_amount:   59.99, payment_status: 'paid',    created_at: '2026-02-14T15:30:00Z' },
-  { id: '77777777-0000-0000-0000-000000000009', customer_id: '11111111-0000-0000-0000-000000000009', total_amount:  214.97, payment_status: 'paid',    created_at: '2026-03-01T11:00:00Z' },
-  { id: '77777777-0000-0000-0000-000000000010', customer_id: '11111111-0000-0000-0000-000000000010', total_amount: 1899.99, payment_status: 'paid',    created_at: '2026-03-12T14:15:00Z' },
-];
-
-const payments = [
-  { order_id: '77777777-0000-0000-0000-000000000001', provider: 'cash',     amount: 1299.99, reference: null,             status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000002', provider: 'paystack', amount: 1899.99, reference: 'PST-1122334455', status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000003', provider: 'cash',     amount:  800.00, reference: null,             status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000004', provider: 'momo',     amount:  749.99, reference: 'MOMO-99887766',  status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000006', provider: 'paystack', amount: 1299.99, reference: 'PST-5566778899', status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000007', provider: 'cash',     amount:  189.97, reference: null,             status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000008', provider: 'cash',     amount:   59.99, reference: null,             status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000009', provider: 'momo',     amount:  214.97, reference: 'MOMO-44556677',  status: 'completed' },
-  { order_id: '77777777-0000-0000-0000-000000000010', provider: 'paystack', amount: 1899.99, reference: 'PST-1234567890', status: 'completed' },
-];
-
-const expenses = [
-  { title: 'Austin Hub A — Monthly Rent',          amount: 3200.00, category: 'Facility',   created_at: '2026-01-01T00:00:00Z' },
-  { title: 'Warehouse Staff Payroll — Jan',         amount: 5500.00, category: 'Payroll',    created_at: '2026-01-31T00:00:00Z' },
-  { title: 'Freight & Shipping — SHP-2026-001',     amount:  980.00, category: 'Logistics',  created_at: '2026-01-16T00:00:00Z' },
-  { title: 'Barcode Scanner Maintenance',           amount:  150.00, category: 'Equipment',  created_at: '2026-02-05T00:00:00Z' },
-  { title: 'Office Supplies & Packaging',           amount:  220.00, category: 'Operations', created_at: '2026-02-10T00:00:00Z' },
-  { title: 'Austin Hub A — Monthly Rent',           amount: 3200.00, category: 'Facility',   created_at: '2026-02-01T00:00:00Z' },
-  { title: 'Warehouse Staff Payroll — Feb',         amount: 5500.00, category: 'Payroll',    created_at: '2026-02-28T00:00:00Z' },
-  { title: 'Vehicle Fuel & Delivery Costs',         amount:  410.00, category: 'Logistics',  created_at: '2026-02-20T00:00:00Z' },
-  { title: 'Austin Hub A — Monthly Rent',           amount: 3200.00, category: 'Facility',   created_at: '2026-03-01T00:00:00Z' },
-  { title: 'Warehouse Staff Payroll — Mar',         amount: 5500.00, category: 'Payroll',    created_at: '2026-03-31T00:00:00Z' },
-];
-
-// ─── run ───────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('\n🚀  American Home Ventures — Database Seed\n');
+  await cleanDatabase();
 
-  await insert('customers',         customers,    'Customers');
-  await insert('products',          products,     'Products');
-  await insert('product_variants',  variants,     'Product Variants');
-  await insert('shipments',         shipments,    'Shipments');
-  await insert('inventory_batches', batches,      'Inventory Batches');
-  await insert('inventory_units',   units,        'Inventory Units');
-  await insertNoId('inventory_ledger', ledgerEntries, 'Inventory Ledger');
-  await insert('orders',            orders,       'Orders');
-  await insertNoId('payments',      payments,     'Payments');
-  await insertNoId('expenses',      expenses,     'Expenses');
+  console.log('🚀 Seeding operational database...');
 
-  console.log('\n✨  Seed complete!\n');
+  // 1. Create Auth Users & Profiles (10 users: 2 admin, 2 inventory, 6 agent)
+  const userData = [
+    { id: makeUuid('11111111', 1), email: 'marcus@americanhomeventures.com', name: 'Marcus Reynolds', role: 'admin', commission_type: 'flat', commission_rate: 0 },
+    { id: makeUuid('11111111', 2), email: 'sandra@americanhomeventures.com', name: 'Sandra Okafor', role: 'admin', commission_type: 'flat', commission_rate: 0 },
+    { id: makeUuid('11111111', 3), email: 'james@americanhomeventures.com', name: 'James Cole', role: 'inventory', commission_type: 'flat', commission_rate: 0 },
+    { id: makeUuid('11111111', 4), email: 'yao@americanhomeventures.com', name: 'Yao Mensah', role: 'inventory', commission_type: 'flat', commission_rate: 0 },
+    { id: makeUuid('11111111', 5), email: 'kwame@americanhomeventures.com', name: 'Kwame Asante', role: 'agent', commission_type: 'percentage', commission_rate: 0.05 },
+    { id: makeUuid('11111111', 6), email: 'ama@americanhomeventures.com', name: 'Ama Serwaa', role: 'agent', commission_type: 'percentage', commission_rate: 0.07 },
+    { id: makeUuid('11111111', 7), email: 'kofi@americanhomeventures.com', name: 'Kofi Mensah', role: 'agent', commission_type: 'flat', commission_rate: 20.0 },
+    { id: makeUuid('11111111', 8), email: 'efua@americanhomeventures.com', name: 'Efua Osei', role: 'agent', commission_type: 'variant_specific', commission_rate: 0 },
+    { id: makeUuid('11111111', 9), email: 'yaw@americanhomeventures.com', name: 'Yaw Boateng', role: 'agent', commission_type: 'percentage', commission_rate: 0.04 },
+    { id: makeUuid('11111111', 10), email: 'esi@americanhomeventures.com', name: 'Esi Addo', role: 'agent', commission_type: 'flat', commission_rate: 15.0 },
+  ];
+
+  for (const u of userData) {
+    const { error } = await supabase.auth.admin.createUser({
+      id: u.id,
+      email: u.email,
+      password: 'password123',
+      email_confirm: true,
+      user_metadata: {
+        name: u.name,
+        role: u.role,
+        commission_type: u.commission_type,
+        commission_rate: u.commission_rate,
+      }
+    });
+    if (error) {
+      console.error(`❌ Error creating user ${u.email}:`, error.message);
+    } else {
+      console.log(`👤 Auth user created: ${u.email}`);
+    }
+  }
+
+  // 2. Create 20 Customers
+  const customerNames = [
+    'Marcus Reynolds', 'Sandra Okafor', 'Derek Nguyen', 'Priya Mehta', 'Luis Castellano',
+    'Claire Bouchard', 'Anthony Osei', 'Fatima Al-Rashid', 'James Whitfield', 'Yuki Tanaka',
+    'Amina Bello', 'Kwesi Arthur', 'John Dumelo', 'Yvonne Nelson', 'Nadia Buari',
+    'Sarkodie Owusu', 'Stonebwoy Satekla', 'Efya Awindor', 'Jackie Appiah', 'Majid Michel'
+  ];
+  const customers = customerNames.map((name, i) => ({
+    id: makeUuid('22222222', i + 1),
+    name,
+    phone: `+1-512-555-01${10 + i}`,
+    address: `${100 + i * 5} Congress Ave, Austin, TX 78701`,
+  }));
+  await supabase.from('customers').insert(customers);
+  console.log(`👥 Seeded ${customers.length} Customers`);
+
+  // 3. Create 30 Products (with category, has_serial)
+  const productTemplates = [
+    { name: 'Samsung 65" 4K QLED TV', category: 'Electronics', has_serial: true },
+    { name: 'LG Refrigerator 28 cu ft', category: 'Appliances', has_serial: true },
+    { name: 'Whirlpool Washer/Dryer Set', category: 'Appliances', has_serial: true },
+    { name: 'Dyson V15 Detect Vacuum', category: 'Electronics', has_serial: true },
+    { name: 'Apple MacBook Air M3 13"', category: 'Computers', has_serial: true },
+    { name: 'Bamboo Cutting Board Set', category: 'Kitchen', has_serial: false },
+    { name: 'Memory Foam Pillow 2-Pack', category: 'Bedding', has_serial: false },
+    { name: 'Cast Iron Skillet 12"', category: 'Kitchen', has_serial: false },
+    { name: 'LED Smart Bulb 4-Pack', category: 'Lighting', has_serial: false },
+    { name: 'Weighted Blanket 15lb', category: 'Bedding', has_serial: false },
+    { name: 'Sony WH-1000XM5 Headphones', category: 'Electronics', has_serial: true },
+    { name: 'iPad Pro 11-inch M4', category: 'Computers', has_serial: true },
+    { name: 'Nespresso Vertuo Next', category: 'Appliances', has_serial: true },
+    { name: 'Instant Pot Duo 7-in-1', category: 'Kitchen', has_serial: false },
+    { name: 'AirPods Pro 2nd Gen', category: 'Electronics', has_serial: true },
+    { name: 'Ergonomic Desk Chair', category: 'Office', has_serial: false },
+    { name: 'Electric Standing Desk', category: 'Office', has_serial: false },
+    { name: 'Hydro Flask 32oz', category: 'Kitchen', has_serial: false },
+    { name: 'Ring Video Doorbell', category: 'Lighting', has_serial: true },
+    { name: 'Kindle Paperwhite', category: 'Computers', has_serial: true },
+    { name: 'Fitbit Charge 6', category: 'Electronics', has_serial: true },
+    { name: 'Roomba i3+ Robot Vacuum', category: 'Appliances', has_serial: true },
+    { name: 'Bose SoundLink Flex', category: 'Electronics', has_serial: true },
+    { name: 'Pyrex 18-Piece Glass Set', category: 'Kitchen', has_serial: false },
+    { name: 'Chef Knife 8-inch', category: 'Kitchen', has_serial: false },
+    { name: 'Nonstick Cookware 10-Piece', category: 'Kitchen', has_serial: false },
+    { name: 'Blackout Curtains 2-Panel', category: 'Bedding', has_serial: false },
+    { name: 'Microfiber Sheets Queen', category: 'Bedding', has_serial: false },
+    { name: 'Smart Plug 4-Pack', category: 'Lighting', has_serial: false },
+    { name: 'Philips Sonicare ProtectiveClean', category: 'Electronics', has_serial: true },
+  ];
+
+  const products = productTemplates.map((p, i) => ({
+    id: makeUuid('33333333', i + 1),
+    name: p.name,
+    category: p.category,
+    has_serial: p.has_serial,
+    description: `High-quality premium product from ${p.category} department.`,
+  }));
+  await supabase.from('products').insert(products);
+  console.log(`📦 Seeded ${products.length} Products`);
+
+  // Create at least 5 variants for each product
+  const variants = [];
+  const colors = ['Black', 'Silver', 'White', 'Midnight', 'Space Grey'];
+  const sizes = ['Standard', 'Large', 'Pack of 1', 'Pack of 2', 'Pack of 4'];
+
+  products.forEach((p, index) => {
+    for (let v = 1; v <= 5; v++) {
+      const isElectronicsOrComp = p.category === 'Electronics' || p.category === 'Computers' || p.category === 'Appliances';
+      const variantOption = isElectronicsOrComp ? colors[v - 1] : sizes[v - 1];
+      const retailPrice = Math.round((10 + index * 40 + v * 15) * 100) / 100;
+      const wholesalePrice = Math.round((retailPrice * 0.7) * 100) / 100;
+      const commissionAmount = Math.round((retailPrice * 0.05) * 100) / 100;
+
+      variants.push({
+        id: makeUuid('44444444', index * 5 + v),
+        product_id: p.id,
+        variant_name: `${p.name} - ${variantOption}`,
+        sku: `AHV-${p.category.slice(0,3).toUpperCase()}-${index + 1}-${v}`,
+        barcode: `088727676${1000 + index * 5 + v}`,
+        retail_price: retailPrice,
+        wholesale_price: wholesalePrice,
+        commission_amount: commissionAmount,
+      });
+    }
+  });
+  await supabase.from('product_variants').insert(variants);
+  console.log(`🏷️ Seeded ${variants.length} Product Variants (5 per product)`);
+
+  // 4. Create 7 Shipments (2 pending, 2 in transit, 3 received)
+  const shipments = [
+    { id: makeUuid('55555555', 1), shipment_code: 'SHP-2026-001', supplier_country: 'USA', status: 'pending', arrival_date: null, total_cost: 0 },
+    { id: makeUuid('55555555', 2), shipment_code: 'SHP-2026-002', supplier_country: 'China', status: 'pending', arrival_date: null, total_cost: 0 },
+    { id: makeUuid('55555555', 3), shipment_code: 'SHP-2026-003', supplier_country: 'USA', status: 'in_transit', arrival_date: '2026-07-20', total_cost: 15000 },
+    { id: makeUuid('55555555', 4), shipment_code: 'SHP-2026-004', supplier_country: 'Germany', status: 'in_transit', arrival_date: '2026-07-25', total_cost: 25000 },
+    { id: makeUuid('55555555', 5), shipment_code: 'SHP-2026-005', supplier_country: 'China', status: 'received', arrival_date: '2026-06-10', total_cost: 45000 },
+    { id: makeUuid('55555555', 6), shipment_code: 'SHP-2026-006', supplier_country: 'Netherlands', status: 'received', arrival_date: '2026-06-25', total_cost: 32000 },
+    { id: makeUuid('55555555', 7), shipment_code: 'SHP-2026-007', supplier_country: 'Japan', status: 'received', arrival_date: '2026-07-02', total_cost: 18500 },
+  ];
+  await supabase.from('shipments').insert(shipments);
+  console.log(`🚢 Seeded ${shipments.length} Shipments`);
+
+  // Create Shipment Items
+  const shipmentItems = [];
+  let itemCounter = 1;
+  // Link each shipment to a few products
+  shipments.forEach((shp, sIdx) => {
+    // Each shipment gets 3-4 products
+    for (let pIdx = 0; pIdx < 3; pIdx++) {
+      const prodIndex = (sIdx * 3 + pIdx) % products.length;
+      shipmentItems.push({
+        id: makeUuid('55555556', itemCounter++),
+        shipment_id: shp.id,
+        product_id: products[prodIndex].id,
+        quantity: 20 + pIdx * 10,
+        cost_price: 30 + prodIndex * 20,
+      });
+    }
+  });
+  await supabase.from('shipment_items').insert(shipmentItems);
+  console.log(`📦 Seeded ${shipmentItems.length} Shipment Items`);
+
+  // 5. Inventory Batches (for the 3 received shipments + some adjustments)
+  const batches = [];
+  const receivedShipments = shipments.filter(s => s.status === 'received');
+  let batchCounter = 1;
+
+  receivedShipments.forEach((shp, sIdx) => {
+    const items = shipmentItems.filter(item => item.shipment_id === shp.id);
+    items.forEach((item, iIdx) => {
+      batches.push({
+        id: makeUuid('66666666', batchCounter),
+        product_id: item.product_id,
+        shipment_id: shp.id,
+        quantity_received: item.quantity,
+        remaining_quantity: item.quantity,
+        cost_price: item.cost_price,
+        created_at: new Date(`2026-06-${10 + sIdx * 5}`).toISOString(),
+      });
+      batchCounter++;
+    });
+  });
+
+  // Add 3 non-shipment batches for general adjustments
+  for (let adj = 1; adj <= 3; adj++) {
+    batches.push({
+      id: makeUuid('66666666', batchCounter),
+      product_id: products[adj].id,
+      shipment_id: null,
+      quantity_received: 50,
+      remaining_quantity: 42,
+      cost_price: 25 + adj * 15,
+      created_at: new Date().toISOString(),
+    });
+    batchCounter++;
+  }
+  await supabase.from('inventory_batches').insert(batches);
+  console.log(`🏷️ Seeded ${batches.length} Inventory Batches`);
+
+  // 6. Inventory Units (for serialized items in batches)
+  const units = [];
+  let unitCounter = 1;
+  for (const b of batches) {
+    const prod = products.find(p => p.id === b.product_id);
+    if (prod && prod.has_serial) {
+      // Create serial units for remaining quantity
+      for (let u = 1; u <= b.remaining_quantity; u++) {
+        units.push({
+          id: makeUuid('77777777', unitCounter),
+          batch_id: b.id,
+          serial_number: `SN-${prod.category.slice(0,3).toUpperCase()}-${b.id.slice(0,4)}-${u}`,
+          status: 'available',
+        });
+        unitCounter++;
+      }
+    }
+  }
+  await supabase.from('inventory_units').insert(units);
+  console.log(`🧮 Seeded ${units.length} Serialized Inventory Units`);
+
+  // 7. Inventory Ledger
+  const ledgerEntries = batches.map((b, i) => ({
+    id: makeUuid('88888888', i + 1),
+    product_id: b.product_id,
+    batch_id: b.id,
+    type: 'IN',
+    quantity: b.quantity_received,
+    reference_id: b.shipment_id || 'Initial Adjustment',
+  }));
+  await supabase.from('inventory_ledger').insert(ledgerEntries);
+  console.log(`📒 Seeded ${ledgerEntries.length} Inventory Ledger rows`);
+
+  // 8. Create 20 Orders shared among payment methods
+  const orders = [];
+  const orderItems = [];
+  const payments = [];
+  const providers = ['cash', 'paystack', 'momo', 'credit'];
+  const paymentStatuses = {
+    cash: 'paid',
+    paystack: 'paid',
+    momo: 'paid',
+    credit: 'credit',
+  };
+
+  // We need to fetch wallets to correctly pay commissions, but triggers will auto-calculate it.
+  // Wait, let's look at the database order processing logic.
+  // The database triggers process_order_item_stock() and process_order_commission() will run.
+  // Wait, to prevent order_items trigger from throwing "insufficient stock" or failing because
+  // it expects batches to have enough remaining_quantity, we should order from the batches we just created!
+  // Let's match each order to a specific variant, product, and batch.
+
+  for (let o = 1; o <= 20; o++) {
+    const customer = customers[(o - 1) % customers.length];
+    const provider = providers[o % providers.length];
+    const status = paymentStatuses[provider];
+    
+    // Choose a batch with remaining quantity
+    const batch = batches[o % batches.length];
+    const product = products.find(p => p.id === batch.product_id);
+    const variant = variants.find(v => v.product_id === product.id);
+
+    const orderId = makeUuid('99999999', o);
+    const createdBy = userData[4 + (o % 6)].id; // Assign to one of the 6 agents
+
+    orders.push({
+      id: orderId,
+      customer_id: customer.id,
+      total_amount: variant.retail_price * 2,
+      payment_status: status,
+      created_by: createdBy,
+      created_at: new Date(`2026-06-${15 + (o % 10)}T12:00:00Z`).toISOString(),
+    });
+
+    // Check if the product has serial
+    let unitId = null;
+    if (product.has_serial) {
+      // Find a unit for this batch
+      const unit = units.find(u => u.batch_id === batch.id && u.status === 'available');
+      if (unit) {
+        unitId = unit.id;
+        unit.status = 'sold'; // Update local state so we don't double sell
+      }
+    }
+
+    orderItems.push({
+      id: makeUuid('99999990', o),
+      order_id: orderId,
+      product_id: product.id,
+      quantity: 2,
+      unit_price: variant.retail_price,
+      batch_id: batch.id,
+      unit_id: unitId,
+    });
+
+    if (provider !== 'credit') {
+      payments.push({
+        id: makeUuid('99999980', o),
+        order_id: orderId,
+        provider: provider,
+        amount: variant.retail_price * 2,
+        reference: provider === 'cash' ? null : `REF-${provider.toUpperCase()}-${o}`,
+        status: 'completed',
+      });
+    }
+  }
+
+  // Insert Orders
+  await supabase.from('orders').insert(orders);
+  // Insert Order Items (Triggers process_order_item_stock() and reduces remaining_quantity)
+  // Wait, let's insert them and let triggers do their work.
+  // Wait! If the triggers execute, they will modify remaining_quantity in the DB.
+  // Let's do it safely.
+  await supabase.from('order_items').insert(orderItems);
+  await supabase.from('payments').insert(payments);
+
+  console.log(`🛒 Seeded 20 Orders, Order Items, and Payments`);
+
+  // 9. Wallet Transactions
+  // When agents are created, the trigger on_public_user_created automatically creates their wallets with balance 0.
+  // When order items are inserted, order_paid trigger may run or orders are updated.
+  // Let's double check if we can fetch all wallets to insert some direct salary/commission transactions.
+  const { data: wallets } = await supabase.from('wallets').select('*');
+  if (wallets && wallets.length > 0) {
+    const walletTransactions = [];
+    const withdrawals = [];
+    
+    wallets.forEach((w, wIdx) => {
+      // Add direct salary deposit
+      walletTransactions.push({
+        wallet_id: w.id,
+        amount: 2000,
+        type: 'credit',
+        reason: 'Monthly operational base salary',
+      });
+
+      // Add a commission credit
+      walletTransactions.push({
+        wallet_id: w.id,
+        amount: 150.50,
+        type: 'credit',
+        reason: 'Referral commission bonus',
+      });
+
+      // Add a withdrawal transaction
+      walletTransactions.push({
+        wallet_id: w.id,
+        amount: -500,
+        type: 'debit',
+        reason: 'Momo Withdrawal Out',
+      });
+
+      // Add actual withdrawal requests
+      withdrawals.push({
+        user_id: w.user_id,
+        amount: 500,
+        network: 'MTN Mobile Money',
+        phone: '+1-512-555-0999',
+        status: wIdx % 3 === 0 ? 'pending' : (wIdx % 3 === 1 ? 'completed' : 'failed'),
+      });
+    });
+
+    await supabase.from('wallet_transactions').insert(walletTransactions);
+    await supabase.from('withdrawals').insert(withdrawals);
+    console.log(`💳 Seeded Wallet Transactions and Withdrawals`);
+  }
+
+  // 10. 10 Tasks for each staff (10 staff members * 10 tasks = 100 tasks)
+  const taskPriorities = ['low', 'medium', 'high'];
+  const taskStatuses = ['pending', 'completed'];
+  const tasks = [];
+  let taskIdx = 1;
+  for (const u of userData) {
+    for (let t = 1; t <= 10; t++) {
+      tasks.push({
+        id: makeUuid('aaaaaa00', taskIdx),
+        assigned_to: u.id,
+        title: `Reconcile dispatch task #${t} for ${u.name}`,
+        description: `Operational task description for assignment cycle ${t}. Please verify batch items and serial log records.`,
+        priority: taskPriorities[t % 3],
+        status: taskStatuses[t % 2],
+        due_date: new Date(`2026-07-${10 + t}`).toISOString().split('T')[0],
+      });
+      taskIdx++;
+    }
+  }
+  await supabase.from('tasks').insert(tasks);
+  console.log(`📋 Seeded ${tasks.length} Staff Tasks`);
+
+  // 11. 5 Notifications & 5 Alerts
+  const notifications = Array.from({ length: 5 }).map((_, i) => ({
+    id: makeUuid('bbbbbb00', i + 1),
+    user_id: userData[4 + i].id, // Seed to different agents
+    title: `Notification Alert ${i + 1}`,
+    body: `This is a test notification alert body for operational event trigger #${i + 1}.`,
+    category: ['inventory', 'orders', 'shipments', 'general'][i % 4],
+    read: i % 2 === 0,
+  }));
+  await supabase.from('notifications').insert(notifications);
+
+  const alerts = Array.from({ length: 5 }).map((_, i) => ({
+    id: makeUuid('cccccc00', i + 1),
+    title: `Critical Alert: ${['Stock Low', 'Out of stock', 'Credit limit', 'ETA update'][i % 4]}`,
+    body: `System warning body message for critical event indicator log #${i + 1}.`,
+    category: ['inventory_low', 'inventory_out', 'credit', 'shipment'][i % 4],
+    read: false,
+  }));
+  await supabase.from('alerts').insert(alerts);
+  console.log(`🔔 Seeded Notifications and System Alerts`);
+
+  // 12. 10 Reports each (discrepancy, damage, shipment)
+  const discrepancyReports = Array.from({ length: 10 }).map((_, i) => ({
+    id: makeUuid('dddddd00', i + 1),
+    product_id: products[i % products.length].id,
+    reported_by: userData[2 + (i % 2)].id, // Reported by warehouse ops
+    expected_qty: 50,
+    actual_qty: 48,
+    notes: `Cycle count mismatch on item ${i + 1}. Found physical deficiency in batch shelf.`,
+  }));
+  await supabase.from('discrepancy_reports').insert(discrepancyReports);
+
+  const damageReports = Array.from({ length: 10 }).map((_, i) => ({
+    id: makeUuid('eeeeee00', i + 1),
+    product_id: products[(i + 2) % products.length].id,
+    reported_by: userData[2 + (i % 2)].id,
+    serial_number: `SN-DMG-00${i + 1}`,
+    severity: ['Low', 'Medium', 'High'][i % 3],
+    description: `Package dropped or damaged during physical transit sorting cycle #${i + 1}.`,
+  }));
+  await supabase.from('damage_reports').insert(damageReports);
+
+  const shipmentReports = Array.from({ length: 10 }).map((_, i) => ({
+    id: makeUuid('ffffff00', i + 1),
+    shipment_id: shipments[i % shipments.length].id,
+    reported_by: userData[2 + (i % 2)].id,
+    issue_type: ['Delay', 'Broken Box', 'Customs Check', 'Wrong Item Count'][i % 4],
+    description: `Operational log issue reported for shipment identifier logistics flow sequence #${i + 1}.`,
+  }));
+  await supabase.from('shipment_reports').insert(shipmentReports);
+
+  console.log(`📄 Seeded 10 Discrepancy, 10 Damage, and 10 Shipment Reports`);
+
+  // 13. Seed Expenses (10 rows)
+  const expenses = Array.from({ length: 10 }).map((_, i) => ({
+    id: makeUuid('11112222', i + 1),
+    title: `Rent / Utilities / Operational charge #${i + 1}`,
+    amount: 1500 + i * 200,
+    category: ['Logistics', 'Facility', 'Payroll', 'Equipment'][i % 4],
+    created_at: new Date().toISOString(),
+  }));
+  await supabase.from('expenses').insert(expenses);
+  console.log(`💸 Seeded Expenses`);
+
+  console.log('\n✨ Database seed complete!\n');
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
@@ -15,6 +14,8 @@ import { useMockData } from '../context/MockDataContext';
 import SectionHeader from '../components/SectionHeader';
 import EmptyState from '../components/EmptyState';
 import AppButton from '../components/AppButton';
+import StickyScrollView from '../components/StickyScrollView';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 type Agent = {
   id: string;
@@ -45,6 +46,7 @@ export default function WalletScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [agentsExpanded, setAgentsExpanded] = useState(false);
 
   const fetchWallets = async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -170,11 +172,6 @@ export default function WalletScreen() {
           <Text style={styles.bannerValue}>
             ${myBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </Text>
-          {currentUser?.role === 'admin' && (
-            <Text style={styles.bannerSub}>
-              {agents.length} registered wallet{agents.length !== 1 ? 's' : ''}
-            </Text>
-          )}
           <AppButton
             label="Withdraw Funds"
             onPress={() => navigation.navigate('Withdraw')}
@@ -186,7 +183,7 @@ export default function WalletScreen() {
       </View>
 
       {/* Scrollable list content */}
-      <ScrollView
+      <StickyScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -202,9 +199,18 @@ export default function WalletScreen() {
         {/* Agent wallet cards (Admin only) */}
         {currentUser?.role === 'admin' && (
           <>
-            <SectionHeader title="Agent Wallets" variant="compact" />
+            <SectionHeader
+              title={`Agent Wallets (${agents.length})`}
+              variant="compact"
+              onDropDown={() => setAgentsExpanded(prev => !prev)}
+              icon={
+                agentsExpanded
+                  ? <ChevronUp size={24} color={colors.primary} />
+                  : <ChevronDown size={24} color={colors.primary} />
+              }
+            />
 
-            {agents.map(a => (
+            {(agentsExpanded ? agents : agents.slice(0, 2)).map(a => (
               <TouchableOpacity key={a.id} style={styles.agentCard} activeOpacity={0.8} onPress={() => navigation.navigate('AgentWallet', { agentId: a.id })}>
                 <View style={styles.agentLeft}>
                   <View style={[styles.avatarSmall, { backgroundColor: colors.primary + '20' }]}>
@@ -243,7 +249,6 @@ export default function WalletScreen() {
               variant="compact"
               onViewAll={() => navigation.navigate('AllTransactions')}
               viewAllLabel="VIEW ALL"
-              style={{ marginTop: SPACING.lg }}
             />
             <View style={styles.txCard}>
               {transactions.map((tx, idx) => (
@@ -288,7 +293,7 @@ export default function WalletScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+      </StickyScrollView>
     </View>
   );
 }
@@ -299,14 +304,14 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     container: { ...cs.container },
     staticHeader: { padding: SPACING.lg, paddingBottom: SPACING.xs },
     scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: SPACING.lg, paddingTop: 10, paddingBottom: 40 },
-    center: { ...cs.center, paddingTop: 80 },
+    scrollContent: { padding: SPACING.lg, paddingTop: 0 },
+    center: { ...cs.center },
 
     // ── Banner ────────────────────────────────────────────────────────────────
     banner: {
       backgroundColor: colors.primary,
       borderRadius: RADIUS.xl,
-      padding: 22,
+      padding: SPACING.xl,
     },
     bannerLabel: {
       fontSize: FONT_SIZE.xs,
@@ -316,12 +321,11 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       fontWeight: '700',
     },
     bannerValue: {
-      fontSize: 38,
+      fontSize: FONT_SIZE.hero,
       fontWeight: '800',
       color: '#ffffff',
       fontVariant: ['tabular-nums'],
     },
-    bannerSub: { fontSize: FONT_SIZE.md, color: '#ffffffaa' },
     walletBtn: {
       alignItems: 'center',
       backgroundColor: '#ffffff',
@@ -340,7 +344,7 @@ const createStyles = (colors: any, cs: any, typo: any) =>
       alignItems: 'center',
       ...cs.cardPadded,
       padding: SPACING.xl - 6,
-      marginBottom: 10,
+      marginBottom: SPACING.sm,
     },
     agentLeft: {
       flexDirection: 'row',
@@ -352,17 +356,17 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     avatarTextSmall: { ...cs.avatarTextSmall },
     agentInfo: { flex: 1 },
     agentName: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.text },
-    agentMeta: { ...typo.meta, marginTop: 2 },
+    agentMeta: { ...typo.meta },
 
     // ── Balance ───────────────────────────────────────────────────────────────
     balanceBox: { alignItems: 'flex-end' },
     balanceVal: {
-      fontSize: 18,
+      fontSize: FONT_SIZE.xxl,
       fontWeight: '800',
       color: colors.text,
       fontVariant: ['tabular-nums'],
     },
-    balanceLbl: { fontSize: FONT_SIZE.xs, color: colors.textDim, marginTop: 2 },
+    balanceLbl: { fontSize: FONT_SIZE.xs, color: colors.textDim },
 
     // ── Transactions ──────────────────────────────────────────────────────────
     txCard: { ...cs.card },
@@ -371,7 +375,7 @@ const createStyles = (colors: any, cs: any, typo: any) =>
     txDot: { ...cs.statusDot },
     txInfo: { flex: 1 },
     txReason: { fontSize: FONT_SIZE.body, color: colors.text, fontWeight: '500' },
-    txDate: { ...typo.meta, marginTop: 2 },
+    txDate: { ...typo.meta },
     txAmount: {
       fontSize: FONT_SIZE.xl,
       fontWeight: '700',

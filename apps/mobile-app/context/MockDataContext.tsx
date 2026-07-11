@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export interface Task {
   priority: 'high' | 'medium' | 'low';
   status: 'pending' | 'completed';
   due_date: string;
+  assigned_to?: string;
 }
 
 export interface NotificationItem {
@@ -180,6 +182,16 @@ export interface OfflineActivity {
   type: 'stock' | 'order' | 'scan';
 }
 
+export interface CustomerLedgerEntry {
+  id: string;
+  customer_id: string;
+  type: 'PURCHASE' | 'PAYMENT' | 'ADJUSTMENT_DECREASE' | 'ADJUSTMENT_INCREASE';
+  amount: number;
+  description: string | null;
+  reference_id: string | null;
+  created_at: string;
+}
+
 // ─── Context Type ────────────────────────────────────────────────────────────
 
 interface MockDataContextType {
@@ -203,6 +215,7 @@ interface MockDataContextType {
   users: MockUser[];
   currentUser: MockUser | null;
   offlineActivities: OfflineActivity[];
+  customerLedger: CustomerLedgerEntry[];
 
   // Actions
   addOrder: (customerId: string | null, total: number, paymentStatus: Order['payment_status'], items: Omit<OrderItem, 'id' | 'order_id'>[]) => void;
@@ -221,6 +234,10 @@ interface MockDataContextType {
   signOutMockUser: () => void;
   syncActivities: (ids: string[]) => void;
   resetActivities: () => void;
+  addTask: (title: string, description: string, priority: Task['priority'], dueDate: string, assignedTo?: string) => void;
+  adjustCustomerDebt: (customerId: string, amount: number, description?: string) => void;
+  recordCustomerPayment: (customerId: string, amount: number, method: string, notes: string) => void;
+  logStaffActivity: (action: string, details: Record<string, any>) => void;
 }
 
 const MockDataContext = createContext<MockDataContextType | null>(null);
@@ -239,10 +256,10 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     { id: '11111111-0000-0000-0000-000000000007', name: 'Anthony Osei', phone: '+1-512-555-0107', address: '6000 Middle Fiskville Rd, Austin, TX 78752', total_debt: 0 },
     { id: '11111111-0000-0000-0000-000000000008', name: 'Fatima Al-Rashid', phone: '+1-512-555-0108', address: '5501 Airport Blvd, Austin, TX 78751', total_debt: 0 },
     { id: '11111111-0000-0000-0000-000000000009', name: 'James Whitfield', phone: '+1-512-555-0109', address: '7901 Cameron Rd, Austin, TX 78754', total_debt: 0 },
-    { id: '11111111-0000-0000-0000-000000000010', name: 'Yuki Tanaka', phone: '+1-512-555-0110', address: '11501 Domain Dr, Austin, TX 78758', total_debt: 0 },
+    { id: '11111111-0000-0000-0000-000000000010', name: 'Yuki Tanaka', phone: '+1-512-555-0110', address: '11501 Domain Dr, Austin, TX 78758', total_debt: -450.00 },
   ]);
 
-  const [products] = useState<Product[]>([
+  const [products, setProducts] = useState<Product[]>([
     { id: '22222222-0000-0000-0000-000000000001', name: 'Samsung 65" 4K QLED TV', category: 'Electronics', has_serial: true, description: 'Samsung QN65QN90B Neo QLED 4K Smart TV with Quantum Matrix Technology' },
     { id: '22222222-0000-0000-0000-000000000002', name: 'LG Refrigerator 28 cu ft', category: 'Appliances', has_serial: true, description: 'LG LRMVS3006S French Door Refrigerator with InstaView Door-in-Door' },
     { id: '22222222-0000-0000-0000-000000000003', name: 'Whirlpool Washer/Dryer Set', category: 'Appliances', has_serial: true, description: 'Whirlpool WFW5000HW 4.5 Cu Ft front load washer and dryer combo' },
@@ -255,7 +272,7 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     { id: '22222222-0000-0000-0000-000000000010', name: 'Weighted Blanket 15lb', category: 'Bedding', has_serial: false, description: 'YnM 15lb weighted blanket for adults, 60x80 inches, cotton outer shell' }
   ]);
 
-  const [variants] = useState<ProductVariant[]>([
+  const [variants, setVariants] = useState<ProductVariant[]>([
     { id: '33333333-0000-0000-0000-000000000001', product_id: '22222222-0000-0000-0000-000000000001', variant_name: '65" QLED - Black', sku: 'SAMS-TV-65-BLK', barcode: '0887276766669', retail_price: 1299.99, wholesale_price: 890.00, commission_amount: 45.00 },
     { id: '33333333-0000-0000-0000-000000000002', product_id: '22222222-0000-0000-0000-000000000002', variant_name: '28 cu ft - Steel', sku: 'LG-FRG-28-STL', barcode: '0048231781234', retail_price: 1899.99, wholesale_price: 1350.00, commission_amount: 60.00 },
     { id: '33333333-0000-0000-0000-000000000003', product_id: '22222222-0000-0000-0000-000000000003', variant_name: 'Washer+Dryer Set', sku: 'WHP-WD-SET-WHT', barcode: '0883049486312', retail_price: 1599.99, wholesale_price: 1100.00, commission_amount: 55.00 },
@@ -266,7 +283,7 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     { id: '33333333-0000-0000-0000-000000000008', product_id: '22222222-0000-0000-0000-000000000007', variant_name: 'Queen - White 2-Pack', sku: 'BED-MFP-QN-WHT', barcode: '0840018400012', retail_price: 59.99, wholesale_price: 32.00, commission_amount: 0.00 },
     { id: '33333333-0000-0000-0000-000000000009', product_id: '22222222-0000-0000-0000-000000000008', variant_name: '12" - Black Seasoned', sku: 'KIT-CI-12-BLK', barcode: '0078742064482', retail_price: 44.99, wholesale_price: 24.00, commission_amount: 0.00 },
     { id: '33333333-0000-0000-0000-000000000010', product_id: '22222222-0000-0000-0000-000000000009', variant_name: 'A19 RGBIC 4-Pack', sku: 'LIT-LED-4PK-RGB', barcode: '0840095800142', retail_price: 39.99, wholesale_price: 20.00, commission_amount: 0.00 },
-    { id: '33333333-0000-0000-0000-000000000011', product_id: '22222222-0000-0000-0000-000000000010', variant_name: '15lb 60x80 - Dark Grey', sku: 'BED-WB-15-GRY', barcode: '0760158400012', retail_price: 69.99, wholesale_price: 38.00, commission_amount: 0.00 }
+    { id: '33333333-0000-0000-0000-000000000011', product_id: '22222222-0000-0000-0000-000000000010', variant_name: '15lb 60x80 - Dark Grey', sku: 'BED-WB-15-GRY', barcode: '0760158400012', retail_price: 69.99, wholesale_price: 38.00, commission_amount: 0.00 },
   ]);
 
   const [shipments, setShipments] = useState<Shipment[]>([
@@ -275,7 +292,6 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     { id: '44444444-0000-0000-0000-000000000003', shipment_code: 'SHP-2024-016', supplier_name: 'Euro Home Direct', supplier_location: 'Amsterdam, NL', units_count: 60, skus_count: 4, supplier_country: 'Netherlands', status: 'received', arrival_date: '2024-06-10', total_cost: 34800.00 },
     { id: '44444444-0000-0000-0000-000000000004', shipment_code: 'SHP-2024-015', supplier_name: 'Euro Distributors', supplier_location: 'Munich, DE', units_count: 120, skus_count: 5, supplier_country: 'Germany', status: 'received', arrival_date: '2024-05-20', total_cost: 18000.00 }
   ]);
-
   const [batches, setBatches] = useState<InventoryBatch[]>([
     { id: '55555555-0000-0000-0000-000000000001', product_id: '22222222-0000-0000-0000-000000000001', shipment_id: '44444444-0000-0000-0000-000000000001', quantity_received: 8, remaining_quantity: 6, cost_price: 890.00, created_at: '2025-11-12T10:00:00Z' },
     { id: '55555555-0000-0000-0000-000000000002', product_id: '22222222-0000-0000-0000-000000000002', shipment_id: '44444444-0000-0000-0000-000000000001', quantity_received: 5, remaining_quantity: 4, cost_price: 1350.00, created_at: '2025-11-12T10:00:00Z' },
@@ -323,15 +339,7 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const [walletBalance, setWalletBalance] = useState<number>(1840.00);
-  const [currentUser, setCurrentUser] = useState<MockUser | null>({
-    id: 'u-1',
-    name: 'Kwame Asante',
-    email: 'kwame@americanhomeventures.com',
-    role: 'agent',
-    commission_type: 'percentage',
-    commission_rate: 0.05,
-    balance: 1840.00,
-  });
+  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
 
   const [offlineActivities, setOfflineActivities] = useState<OfflineActivity[]>([
     {
@@ -357,18 +365,29 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     },
   ]);
 
+  const [customerLedger, setCustomerLedger] = useState<CustomerLedgerEntry[]>([]);
+
   const mockUsers: MockUser[] = [
     {
-      id: 'u-1',
-      name: 'Kwame Asante',
-      email: 'kwame@americanhomeventures.com',
-      role: 'agent',
-      commission_type: 'percentage',
-      commission_rate: 0.05,
-      balance: walletBalance,
+      id: '11111111-0000-0000-0000-000000000001',
+      name: 'Marcus Reynolds',
+      email: 'marcus@americanhomeventures.com',
+      role: 'admin',
+      commission_type: 'flat',
+      commission_rate: 0,
+      balance: 500.00,
     },
     {
-      id: 'u-2',
+      id: '11111111-0000-0000-0000-000000000002',
+      name: 'Sandra Okafor',
+      email: 'sandra@americanhomeventures.com',
+      role: 'admin',
+      commission_type: 'flat',
+      commission_rate: 0,
+      balance: 1200.00,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000003',
       name: 'James Cole',
       email: 'james@americanhomeventures.com',
       role: 'warehouse_operator',
@@ -377,15 +396,144 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
       balance: 0.00,
     },
     {
-      id: 'u-3',
-      name: 'Marcus Reynolds',
-      email: 'marcus@americanhomeventures.com',
-      role: 'admin',
+      id: '11111111-0000-0000-0000-000000000004',
+      name: 'Yao Mensah',
+      email: 'yao@americanhomeventures.com',
+      role: 'warehouse_operator',
       commission_type: 'flat',
       commission_rate: 0,
-      balance: 500.00,
-    }
+      balance: 0.00,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000005',
+      name: 'Kwame Asante',
+      email: 'kwame@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'percentage',
+      commission_rate: 0.05,
+      balance: walletBalance,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000006',
+      name: 'Ama Serwaa',
+      email: 'ama@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'percentage',
+      commission_rate: 0.07,
+      balance: 750.00,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000007',
+      name: 'Kofi Mensah',
+      email: 'kofi@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'flat',
+      commission_rate: 20.00,
+      balance: 320.00,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000008',
+      name: 'Efua Osei',
+      email: 'efua@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'variant_specific',
+      commission_rate: 0,
+      balance: 450.00,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000009',
+      name: 'Yaw Boateng',
+      email: 'yaw@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'percentage',
+      commission_rate: 0.04,
+      balance: 210.00,
+    },
+    {
+      id: '11111111-0000-0000-0000-000000000010',
+      name: 'Esi Addo',
+      email: 'esi@americanhomeventures.com',
+      role: 'agent',
+      commission_type: 'flat',
+      commission_rate: 15.00,
+      balance: 600.00,
+    },
   ];
+
+  React.useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const email = session.user.email || '';
+          const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+          if (found) {
+            setCurrentUser(found);
+          } else {
+            const { data: dbUser } = await supabase
+              .from('users')
+              .select('id, name, email, role, commission_type, commission_rate')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (dbUser) {
+              setCurrentUser({
+                id: dbUser.id,
+                name: dbUser.name || 'User',
+                email: dbUser.email || '',
+                role: (dbUser.role === 'inventory' ? 'warehouse_operator' : dbUser.role) as any,
+                commission_type: dbUser.commission_type || 'flat',
+                commission_rate: Number(dbUser.commission_rate) || 0,
+                balance: 0,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error checking session on mount:', e);
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const email = session.user.email || '';
+        const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (found) {
+          setCurrentUser(found);
+        } else {
+          try {
+            const { data: dbUser } = await supabase
+              .from('users')
+              .select('id, name, email, role, commission_type, commission_rate')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (dbUser) {
+              setCurrentUser({
+                id: dbUser.id,
+                name: dbUser.name || 'User',
+                email: dbUser.email || '',
+                role: (dbUser.role === 'inventory' ? 'warehouse_operator' : dbUser.role) as any,
+                commission_type: dbUser.commission_type || 'flat',
+                commission_rate: Number(dbUser.commission_rate) || 0,
+                balance: 0,
+              });
+            }
+          } catch (e) {
+            console.warn('Error fetching DB user profile:', e);
+          }
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const signInMockUser = (email: string, password: string): boolean => {
     const found = mockUsers.find(u => u.email === email && password === 'password123');
@@ -605,6 +753,16 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     setBatches(prev =>
       prev.map(b => (b.id === batchId ? { ...b, remaining_quantity: b.remaining_quantity + 1, quantity_received: b.quantity_received + 1 } : b))
     );
+
+    // Log the scan event
+    if (currentUser) {
+      supabase.from('audit_logs').insert([{
+        action: 'SERIAL_SCANNED',
+        details: { serial_number: serialNumber, batch_id: batchId, mobile_app: true, user_name: currentUser.name },
+        user_id: currentUser.id,
+        mobile_app: true,
+      }]).then(() => {});
+    }
     return true;
   };
 
@@ -692,9 +850,21 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleTaskStatus = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    const nextStatus = task?.status === 'completed' ? 'pending' : 'completed';
     setTasks(prev =>
-      prev.map(t => (t.id === taskId ? { ...t, status: t.status === 'completed' ? 'pending' : 'completed' } : t))
+      prev.map(t => (t.id === taskId ? { ...t, status: nextStatus } : t))
     );
+
+    // Log task completion
+    if (nextStatus === 'completed' && currentUser && task) {
+      supabase.from('audit_logs').insert([{
+        action: 'TASK_COMPLETED',
+        details: { task_title: task.title, task_id: taskId, mobile_app: true, user_name: currentUser.name },
+        user_id: currentUser.id,
+        mobile_app: true,
+      }]).then(() => {});
+    }
   };
 
   const markNotificationsAsRead = () => {
@@ -729,6 +899,361 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const addTask = async (
+    title: string,
+    description: string,
+    priority: Task['priority'],
+    dueDate: string,
+    assignedTo?: string
+  ) => {
+    const newTask: Task = {
+      id: `task-${Math.random().toString(36).substring(2, 9)}`,
+      title,
+      description,
+      priority,
+      status: 'pending',
+      due_date: dueDate,
+      assigned_to: assignedTo
+    };
+    
+    setTasks(prev => [newTask, ...prev]);
+
+    try {
+      await supabase.from('tasks').insert([{
+        title,
+        description,
+        priority,
+        status: 'pending',
+        due_date: dueDate,
+        assigned_to: assignedTo || null
+      }]);
+    } catch (e) {
+      console.warn('Failed to insert task to Supabase:', e);
+    }
+  };
+
+  const adjustCustomerDebt = async (customerId: string, amount: number, description?: string) => {
+    setCustomers(prev =>
+      prev.map(c => (c.id === customerId ? { ...c, total_debt: c.total_debt + amount } : c))
+    );
+
+    // Add to local ledger
+    const entryType: CustomerLedgerEntry['type'] = amount > 0 ? 'ADJUSTMENT_INCREASE' : 'ADJUSTMENT_DECREASE';
+    const localEntry: CustomerLedgerEntry = {
+      id: `ledger-${Math.random().toString(36).substring(2, 9)}`,
+      customer_id: customerId,
+      type: entryType,
+      amount: Math.abs(amount),
+      description: description || null,
+      reference_id: null,
+      created_at: new Date().toISOString(),
+    };
+    setCustomerLedger(prev => [localEntry, ...prev]);
+
+    try {
+      const { data: acc } = await supabase
+        .from('credit_accounts')
+        .select('id, total_debt')
+        .eq('customer_id', customerId)
+        .single();
+      
+      if (acc) {
+        await supabase
+          .from('credit_accounts')
+          .update({ total_debt: Number(acc.total_debt || 0) + amount })
+          .eq('id', acc.id);
+      } else {
+        await supabase
+          .from('credit_accounts')
+          .insert([{ customer_id: customerId, total_debt: amount }]);
+      }
+
+      // Persist to customer ledger
+      await supabase.from('customer_ledger').insert([{
+        customer_id: customerId,
+        type: entryType,
+        amount: Math.abs(amount),
+        description: description || null,
+      }]);
+    } catch (e) {
+      console.warn('Failed to adjust customer debt in Supabase:', e);
+    }
+  };
+
+  const recordCustomerPayment = async (
+    customerId: string,
+    amount: number,
+    method: string,
+    notes: string
+  ) => {
+    // A payment reduces the total debt (total_debt = total_debt - amount)
+    setCustomers(prev =>
+      prev.map(c => (c.id === customerId ? { ...c, total_debt: c.total_debt - amount } : c))
+    );
+
+    // Add to local ledger immediately
+    const localPaymentEntry: CustomerLedgerEntry = {
+      id: `ledger-${Math.random().toString(36).substring(2, 9)}`,
+      customer_id: customerId,
+      type: 'PAYMENT',
+      amount,
+      description: notes || `Payment via ${method}`,
+      reference_id: null,
+      created_at: new Date().toISOString(),
+    };
+    setCustomerLedger(prev => [localPaymentEntry, ...prev]);
+
+    try {
+      const { data: acc } = await supabase
+        .from('credit_accounts')
+        .select('id, total_debt')
+        .eq('customer_id', customerId)
+        .single();
+
+      if (acc) {
+        // Record credit payment
+        await supabase.from('credit_payments').insert([
+          {
+            credit_account_id: acc.id,
+            amount: amount,
+          },
+        ]);
+        // Also log general payment history
+        await supabase.from('payments').insert([
+          {
+            provider: method.toLowerCase(),
+            amount: amount,
+            reference: notes,
+            status: 'completed',
+          },
+        ]);
+      }
+
+      // Persist to customer ledger
+      await supabase.from('customer_ledger').insert([{
+        customer_id: customerId,
+        type: 'PAYMENT',
+        amount,
+        description: notes || `Payment via ${method}`,
+      }]);
+    } catch (e) {
+      console.warn('Failed to record customer payment in Supabase:', e);
+    }
+  };
+  const logStaffActivity = async (action: string, details: Record<string, any>) => {
+    if (!currentUser) return;
+    try {
+      await supabase.from('audit_logs').insert([{
+        action,
+        details: { ...details, mobile_app: true, user_name: currentUser.name },
+        user_id: currentUser.id,
+        created_at: new Date().toISOString(),
+      }]);
+    } catch (e) {
+      console.warn('Failed to log staff activity:', e);
+    }
+  };
+
+  const fetchLiveData = async (userId: string, role: string) => {
+    try {
+      // 1. Fetch Customers
+      const { data: dbCustomers } = await supabase.from('customers').select('*').order('name');
+      if (dbCustomers) {
+        // Fetch credit accounts to get total_debt for customers
+        const { data: dbCredits } = await supabase.from('credit_accounts').select('*');
+        const creditMap = new Map(dbCredits?.map(c => [c.customer_id, c.total_debt]) || []);
+        
+        setCustomers(dbCustomers.map(c => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone || '',
+          address: c.address || '',
+          total_debt: creditMap.get(c.id) || 0,
+        })));
+      }
+
+      // 1b. Fetch Customer Ledger
+      const { data: dbLedger } = await supabase
+        .from('customer_ledger')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (dbLedger) setCustomerLedger(dbLedger);
+
+      // 2. Fetch Products and Variants
+      const { data: dbProducts } = await supabase.from('products').select('*').order('name');
+      const { data: dbVariants } = await supabase.from('product_variants').select('*').order('variant_name');
+      
+      if (dbProducts) setProducts(dbProducts);
+      if (dbVariants) setVariants(dbVariants);
+
+      // 3. Fetch Shipments
+      const { data: dbShipments } = await supabase.from('shipments').select('*').order('created_at', { ascending: false });
+      if (dbShipments) {
+        setShipments(dbShipments.map(s => ({
+          id: s.id,
+          shipment_code: s.shipment_code,
+          supplier_name: s.supplier_country, // fallback since schema doesn't have supplier_name
+          supplier_country: s.supplier_country,
+          status: s.status as any,
+          arrival_date: s.arrival_date,
+          total_cost: Number(s.total_cost) || 0,
+        })));
+      }
+
+      // 4. Fetch Batches & Units
+      const { data: dbBatches } = await supabase.from('inventory_batches').select('*');
+      const { data: dbUnits } = await supabase.from('inventory_units').select('*');
+      
+      if (dbBatches) setBatches(dbBatches);
+      if (dbUnits) setUnits(dbUnits);
+
+      // 5. Fetch Orders & Items
+      let orderQuery = supabase.from('orders').select('*').order('created_at', { ascending: false });
+      if (role === 'agent') {
+        orderQuery = orderQuery.eq('created_by', userId);
+      }
+      const { data: dbOrders } = await orderQuery;
+      
+      if (dbOrders) {
+        setOrders(dbOrders);
+        const orderIds = dbOrders.map(o => o.id);
+        const { data: dbOrderItems } = await supabase.from('order_items').select('*').in('order_id', orderIds);
+        if (dbOrderItems) setOrderItems(dbOrderItems);
+      }
+
+      // 6. Fetch Tasks
+      let tasksQuery = supabase.from('tasks').select('*');
+      if (role !== 'admin' && role !== 'manager') {
+        tasksQuery = tasksQuery.eq('assigned_to', userId);
+      }
+      const { data: dbTasks } = await tasksQuery;
+      if (dbTasks) {
+        setTasks(dbTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          description: t.description || '',
+          priority: t.priority as any,
+          status: t.status as any,
+          due_date: t.due_date,
+          assigned_to: t.assigned_to,
+        })));
+      }
+
+      // 7. Fetch Notifications & Alerts
+      const { data: dbNotifs } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      if (dbNotifs) {
+        setNotifications(dbNotifs.map(n => ({
+          id: n.id,
+          title: n.title,
+          body: n.body || '',
+          category: n.category as any,
+          read: n.read,
+          time: new Date(n.created_at).toLocaleDateString(),
+        })));
+      }
+
+      const { data: dbAlerts } = await supabase.from('alerts').select('*').order('created_at', { ascending: false });
+      if (dbAlerts) {
+        setAlerts(dbAlerts.map(a => ({
+          id: a.id,
+          title: a.title,
+          body: a.body || '',
+          category: a.category as any,
+          time: new Date(a.created_at).toLocaleDateString(),
+          read: a.read,
+        })));
+      }
+
+      // 8. Fetch Reports
+      const { data: dbDisc } = await supabase.from('discrepancy_reports').select('*');
+      if (dbDisc) setDiscrepancyReports(dbDisc);
+
+      const { data: dbDmg } = await supabase.from('damage_reports').select('*');
+      if (dbDmg) setDamageReports(dbDmg.map(d => ({
+        id: d.id,
+        product_id: d.product_id,
+        serial_number: d.serial_number || '',
+        severity: d.severity as any,
+        description: d.description || '',
+        created_at: d.created_at,
+      })));
+
+      const { data: dbShipRep } = await supabase.from('shipment_reports').select('*');
+      if (dbShipRep) setShipmentReports(dbShipRep);
+
+      // 9. Fetch Wallet & Transactions
+      const { data: dbWallet } = await supabase.from('wallets').select('*').eq('user_id', userId).single();
+      if (dbWallet) {
+        setWalletBalance(Number(dbWallet.balance) || 0);
+        
+        const { data: dbTx } = await supabase.from('wallet_transactions').select('*').eq('wallet_id', dbWallet.id).order('created_at', { ascending: false });
+        if (dbTx) {
+          setWalletTransactions(dbTx.map(t => ({
+            id: t.id,
+            wallet_id: t.wallet_id,
+            amount: Number(t.amount) || 0,
+            type: t.type as any,
+            reason: t.reason || '',
+            method: 'Auto-credit',
+            reference_id: t.reference_id,
+            created_at: t.created_at,
+            status: 'completed',
+          })));
+        }
+      }
+
+      const { data: dbWithdrawals } = await supabase.from('withdrawals').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      if (dbWithdrawals) {
+        setWithdrawals(dbWithdrawals.map(w => ({
+          id: w.id,
+          user_id: w.user_id,
+          amount: Number(w.amount) || 0,
+          network: w.network,
+          phone: w.phone,
+          status: w.status as any,
+          created_at: w.created_at,
+        })));
+      }
+
+    } catch (e) {
+      console.warn('Could not fetch live Supabase data, utilizing offline mock fallback:', e);
+    }
+  };
+
+  React.useEffect(() => {
+    if (currentUser) {
+      const activeRole = currentUser.role === 'warehouse_operator' ? 'inventory' : currentUser.role;
+      fetchLiveData(currentUser.id, activeRole);
+
+      // Set up real-time postgres subscriptions to auto-refresh data
+      const tasksChannel = supabase
+        .channel('tasks-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+          fetchLiveData(currentUser.id, activeRole);
+        })
+        .subscribe();
+
+      const creditChannel = supabase
+        .channel('credit-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_accounts' }, () => {
+          fetchLiveData(currentUser.id, activeRole);
+        })
+        .subscribe();
+
+      const ordersChannel = supabase
+        .channel('orders-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          fetchLiveData(currentUser.id, activeRole);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(tasksChannel);
+        supabase.removeChannel(creditChannel);
+        supabase.removeChannel(ordersChannel);
+      };
+    }
+  }, [currentUser]);
   return (
     <MockDataContext.Provider
       value={{
@@ -752,6 +1277,7 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
         users: mockUsers,
         currentUser: resolvedCurrentUser,
         offlineActivities,
+        customerLedger,
 
         addOrder,
         addWithdrawal,
@@ -769,6 +1295,10 @@ export function MockDataProvider({ children }: { children: React.ReactNode }) {
         syncActivities,
         resetActivities,
         markNotificationAsRead,
+        addTask,
+        adjustCustomerDebt,
+        recordCustomerPayment,
+        logStaffActivity,
       }}
     >
       {children}

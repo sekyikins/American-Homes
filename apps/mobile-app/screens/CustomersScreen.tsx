@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { supabase, withTimeout } from '../lib/supabase';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -37,6 +37,8 @@ export default function CustomersScreen() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [filterMode, setFilterMode] = useState<'all' | 'they_owe' | 'we_owe'>('all');
 
   const loadMockCustomers = () => {
     setCustomers(mockData.customers);
@@ -79,7 +81,7 @@ export default function CustomersScreen() {
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [mockData.customers]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,14 +89,21 @@ export default function CustomersScreen() {
     setRefreshing(false);
   };
 
-  const filtered = customers.filter(
-    c =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search)
-  );
+  // Filter based on state search query AND filter mode
+  const filtered = customers.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search);
+    if (!matchesSearch) return false;
+    
+    if (filterMode === 'they_owe') return c.total_debt > 0;
+    if (filterMode === 'we_owe') return c.total_debt < 0;
+    return true;
+  });
 
-  const totalDebt = customers.reduce((s, c) => s + c.total_debt, 0);
-  const inDebtCount = customers.filter(c => c.total_debt > 0).length;
+  const theyOweCount = customers.filter(c => c.total_debt > 0).length;
+  const weOweCount = customers.filter(c => c.total_debt < 0).length;
+  
+  const totalTheyOweAmount = customers.filter(c => c.total_debt > 0).reduce((s, c) => s + c.total_debt, 0);
+  const totalWeOweAmount = customers.filter(c => c.total_debt < 0).reduce((s, c) => s + Math.abs(c.total_debt), 0);
 
   const renderItem = ({ item: c, index: idx }: { item: Customer; index: number }) => (
     <TouchableOpacity
@@ -125,13 +134,19 @@ export default function CustomersScreen() {
       {c.total_debt > 0 ? (
         <View style={[styles.debtBadge, { backgroundColor: colors.errorBg, borderColor: colors.errorBorder }]}>
           <Text style={[styles.debtText, { color: colors.errorText }]}>
-            −${c.total_debt.toLocaleString()}
+            Owes Us: ${c.total_debt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </Text>
+        </View>
+      ) : c.total_debt < 0 ? (
+        <View style={[styles.clearBadge, { backgroundColor: colors.successBg, borderColor: colors.successBorder }]}>
+          <Text style={[styles.clearText, { color: colors.successText }]}>
+            Credit: ${Math.abs(c.total_debt).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
           </Text>
         </View>
       ) : (
-        <View style={[styles.clearBadge, { backgroundColor: colors.successBg, borderColor: colors.successBorder }]}>
-          <Text style={[styles.clearText, { color: colors.successText }]}>✓ Clear</Text>
-        </View>
+        <Text style={{ color: colors.textDim, fontSize: FONT_SIZE.body, fontWeight: '600', marginRight: SPACING.sm }}>
+          Clear
+        </Text>
       )}
     </TouchableOpacity>
   );
@@ -141,20 +156,36 @@ export default function CustomersScreen() {
       {/* ── Static header: stats + search ─────────────────────────────────── */}
       <View style={styles.staticHeader}>
         <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statVal}>{customers.length}</Text>
+          <TouchableOpacity 
+            style={[styles.statBox, filterMode === 'all' && { backgroundColor: colors.primary + '10', borderColor: colors.primary }]}
+            onPress={() => setFilterMode('all')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statVal, filterMode === 'all' && { color: colors.primary }]}>{customers.length}</Text>
             <Text style={styles.statLbl}>Total</Text>
-          </View>
-          <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={[styles.statVal, { color: colors.error }]}>{inDebtCount}</Text>
-            <Text style={styles.statLbl}>In Debt</Text>
-          </View>
-          <View style={[styles.statBox, styles.statBorder]}>
-            <Text style={[styles.statVal, { color: colors.error }]}>
-              ${totalDebt.toLocaleString()}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.statBox, styles.statBorder, filterMode === 'they_owe' && { backgroundColor: colors.errorBg, borderColor: colors.error }]}
+            onPress={() => setFilterMode('they_owe')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statVal, { color: colors.error }]}>{theyOweCount}</Text>
+            <Text style={styles.statLbl}>Credits</Text>
+            <Text style={{ fontSize: FONT_SIZE.xs, color: colors.error, fontWeight: '600' }}>
+              ${totalTheyOweAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </Text>
-            <Text style={styles.statLbl}>Total Owed</Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.statBox, styles.statBorder, filterMode === 'we_owe' && { backgroundColor: colors.successBg, borderColor: colors.success }]}
+            onPress={() => setFilterMode('we_owe')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statVal, { color: colors.success }]}>{weOweCount}</Text>
+            <Text style={styles.statLbl}>Credits</Text>
+            <Text style={{ fontSize: FONT_SIZE.xs, color: colors.success, fontWeight: '600'}}>
+              ${totalWeOweAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <TextInput
@@ -204,9 +235,9 @@ const createStyles = (colors: any) =>
 
     // ── Static header ──────────────────────────────────────────────────────────
     staticHeader: {
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 12,
+      paddingHorizontal: SPACING.xl,
+      paddingTop: SPACING.lg,
+      paddingBottom: SPACING.md,
       backgroundColor: colors.background,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
@@ -215,38 +246,37 @@ const createStyles = (colors: any) =>
     statsRow: {
       flexDirection: 'row',
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      marginBottom: 14,
+      marginBottom: SPACING.lg,
       overflow: 'hidden',
     },
-    statBox: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+    statBox: { flex: 1, paddingVertical: SPACING.lg, alignItems: 'center' },
     statBorder: { borderLeftWidth: 1, borderLeftColor: colors.border },
     statVal: {
-      fontSize: 20,
+      fontSize: FONT_SIZE.title,
       fontWeight: '700',
       color: colors.text,
       fontVariant: ['tabular-nums'],
     },
-    statLbl: { fontSize: 11, color: colors.textDim, marginTop: 2, fontWeight: '500' },
+    statLbl: { fontSize: FONT_SIZE.sm, color: colors.textDim, fontWeight: '500' },
 
     input: {
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 10,
+      borderRadius: RADIUS.lg,
       paddingVertical: 11,
-      paddingHorizontal: 14,
+      paddingHorizontal: SPACING.lg,
       color: colors.text,
-      fontSize: 14,
+      fontSize: FONT_SIZE.lg,
     },
 
     // ── List ──────────────────────────────────────────────────────────────────
     listContent: {
-      paddingHorizontal: 20,
-      paddingTop: 14,
-      paddingBottom: 36,
+      paddingHorizontal: SPACING.xl,
+      paddingBottom: SPACING.sm,
     },
 
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -255,7 +285,7 @@ const createStyles = (colors: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 13,
-      gap: 12,
+      gap: SPACING.md,
     },
     divider: { borderBottomWidth: 1, borderBottomColor: colors.border },
 
@@ -267,14 +297,14 @@ const createStyles = (colors: any) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarText: { fontSize: 16, fontWeight: '700' },
+    avatarText: { fontSize: FONT_SIZE.lg, fontWeight: '700' },
 
     info: { flex: 1 },
-    name: { fontSize: 14, fontWeight: '700', color: colors.text },
-    meta: { fontSize: 12, color: colors.textDim, marginTop: 2 },
+    name: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.text },
+    meta: { fontSize: FONT_SIZE.md, color: colors.textDim },
 
-    debtBadge: { borderRadius: 7, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 5 },
-    debtText: { fontSize: 12, fontWeight: '700' },
-    clearBadge: { borderRadius: 7, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 5 },
-    clearText: { fontSize: 12, fontWeight: '700' },
+    debtBadge: { borderRadius: RADIUS.sm, borderWidth: 1, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
+    debtText: { fontSize: FONT_SIZE.md, fontWeight: '700' },
+    clearBadge: { borderRadius: RADIUS.sm, borderWidth: 1, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
+    clearText: { fontSize: FONT_SIZE.md, fontWeight: '700' },
   });

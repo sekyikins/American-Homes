@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { Image } from 'react-native';
 import logo from "../assets/icon.png";
 
@@ -16,7 +16,7 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
-      padding: 24,
+      padding: SPACING.xl,
     },
     content: {
       flex: 1,
@@ -29,7 +29,7 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
     logo: {
       width: 200,
       height: 200,
-      borderRadius: 20,
+      borderRadius: RADIUS.xl,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -39,19 +39,19 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
     },
     title: {
       ...typography.title,
-      fontSize: 32,
+      fontSize: FONT_SIZE.hero,
       textAlign: 'center',
     },
     subtitle: {
       ...typography.subtitle,
-      fontSize: 16,
+      fontSize: FONT_SIZE.xl,
       textAlign: 'center',
-      marginTop: 12,
+      marginTop: SPACING.md,
       maxWidth: '80%',
     },
     bottomContainer: {
       marginTop: 'auto',
-      paddingBottom: 40,
+      paddingBottom: SPACING.xl,
     },
     button: {
       ...commonStyles.button,

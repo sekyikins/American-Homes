@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, FlatList } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { Hammer, ChevronDown } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,25 +10,22 @@ import SuccessOverlay from '../components/SuccessOverlay';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportDamage'>;
 
-const severities: ('Low' | 'Medium' | 'High')[] = ['Low', 'Medium', 'High'];
-
 export default function ReportDamageScreen({ route, navigation }: Props) {
   const { colors, typography, commonStyles } = useTheme();
   const { products, units, batches, addDamageReport } = useMockData();
-
   const initialProductId = route.params?.productId;
 
   const [productId, setProductId] = useState(initialProductId || products[0]?.id || '');
   const [serialNumber, setSerialNumber] = useState('');
-  const [severity, setSeverity] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  const [severity, setSeverity] = useState('Medium');
   const [description, setDescription] = useState('');
-
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [showSerialPicker, setShowSerialPicker] = useState(false);
   const [successVisible, setSuccessVisible] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
   const selectedProduct = products.find(p => p.id === productId);
+  const severities = ['Low', 'Medium', 'High'];
 
   // Available serials for this product
   const availableSerials = units.filter(u => {
@@ -38,46 +35,46 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
   });
 
   const handleSubmit = () => {
-    if (!productId || !description) {
-      Alert.alert('Error', 'Please fill in product and description');
+    if (!productId || !severity || !description) {
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     if (selectedProduct?.has_serial && !serialNumber) {
-      Alert.alert('Error', 'This product is serialized. Please select a serial number.');
+      Alert.alert('Error', 'Please select a serial number for this product');
       return;
     }
 
-    addDamageReport(productId, serialNumber, severity, description);
+    addDamageReport(productId, serialNumber || '', severity as any, description);
 
-    setSerialNumber('');
     setDescription('');
-    setSuccessMsg(`Damage report logged. Product unit marked as damaged and inventory level adjusted.`);
+    setSerialNumber('');
+    setSuccessMsg(`Damage report logged. Adjusted inventory for ${selectedProduct?.name || 'product'}.`);
     setSuccessVisible(true);
   };
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 20 },
-    formGroup: { marginBottom: 18 },
-    label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8 },
+    content: { paddingHorizontal: SPACING.lg },
+    formGroup: { marginBottom: SPACING.xl },
+    label: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.textMuted, marginBottom: SPACING.sm },
     pickerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
     },
-    pickerBtnText: { flex: 1, fontSize: 15, color: colors.text },
-    severityContainer: { flexDirection: 'row', gap: 10 },
+    pickerBtnText: { flex: 1, fontSize: FONT_SIZE.xl, color: colors.text },
+    severityContainer: { flexDirection: 'row', gap: SPACING.sm },
     severityBtn: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: SPACING.md,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: RADIUS.md,
       alignItems: 'center',
       backgroundColor: colors.card,
     },
@@ -85,7 +82,7 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
       borderColor: colors.error,
       backgroundColor: colors.error + '15',
     },
-    severityText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    severityText: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.text },
     severityTextActive: { color: colors.error, fontWeight: '700' },
     input: { ...commonStyles.input },
     textArea: {
@@ -101,29 +98,29 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
       bottom: 0,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
-      padding: 20,
+      padding: SPACING.xl,
       zIndex: 1000,
     },
     pickerModal: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
       maxHeight: '60%',
-      padding: 8,
+      padding: SPACING.sm,
     },
     pickerItem: {
-      padding: 14,
+      padding: SPACING.lg,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    pickerItemText: { fontSize: 15, color: colors.text },
+    pickerItemText: { fontSize: FONT_SIZE.xl, color: colors.text },
+    actionPad: { padding: SPACING.lg },
   });
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Product Selector */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Select Damaged Product</Text>
           <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowProductPicker(true)}>
@@ -134,7 +131,6 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Serial Number Selector if Serialized */}
         {selectedProduct?.has_serial && (
           <View style={styles.formGroup}>
             <Text style={styles.label}>Select Serial Number</Text>
@@ -147,7 +143,6 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {/* Severity */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Damage Severity</Text>
           <View style={styles.severityContainer}>
@@ -166,12 +161,11 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
           </View>
         </View>
 
-        {/* Description */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>Description of Damage</Text>
           <TextInput
             style={styles.textArea}
-            placeholder="Describe the physical damage, how it happened, or current status..."
+            placeholder="Describe the physical damage..."
             placeholderTextColor={colors.textDim}
             multiline
             numberOfLines={4}
@@ -179,16 +173,18 @@ export default function ReportDamageScreen({ route, navigation }: Props) {
             onChangeText={setDescription}
           />
         </View>
+      </ScrollView>
 
+      <View style={styles.actionPad}>
         <AppButton
           label="Submit Damage Report"
           onPress={handleSubmit}
           variant="primary"
           icon={<Hammer size={20} color="#fff" />}
           fullWidth
-          style={{ marginTop: 20, backgroundColor: colors.error, borderColor: colors.error }}
+          style={{ backgroundColor: colors.error, borderColor: colors.error }}
         />
-      </ScrollView>
+      </View>
 
       {/* Product Modal */}
       {showProductPicker && (

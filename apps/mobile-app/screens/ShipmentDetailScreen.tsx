@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { Package, MapPin, DollarSign, Calendar, Truck, ArrowRight, PackageOpen, AlertTriangle } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { RootStackParamList } from '../navigation/types';
 import SectionHeader from '../components/SectionHeader';
 import StatusBadge from '../components/StatusBadge';
 import EmptyState from '../components/EmptyState';
+import StickyScrollView from '../components/StickyScrollView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShipmentDetail'>;
 
@@ -23,46 +24,46 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16 },
+    content: { paddingHorizontal: SPACING.lg },
     card: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      paddingHorizontal: 10,
-      marginBottom: 16,
+      paddingHorizontal: SPACING.md,
+      marginBottom: SPACING.lg,
     },
-    row: { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
-    rowText: { fontSize: 14, color: colors.textMuted, marginLeft: 8 },
-    rowValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginLeft: 'auto' },
+    row: { flexDirection: 'row', alignItems: 'center', marginVertical: SPACING.xs },
+    rowText: { fontSize: FONT_SIZE.lg, color: colors.textMuted, marginLeft: SPACING.sm },
+    rowValue: { fontSize: FONT_SIZE.lg, fontWeight: '600', color: colors.text, marginLeft: 'auto' },
     
     // Timeline Styles
-    timeline: { marginBottom: 12 },
-    timelineItem: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
-    timelineText: { fontSize: 13, color: colors.textDim, flex: 1 },
+    timeline: { marginBottom: SPACING.md },
+    timelineItem: { flexDirection: 'row', alignItems: 'center', marginVertical: SPACING.xs },
+    timelineText: { fontSize: FONT_SIZE.body, color: colors.textDim, flex: 1 },
     timelineTextActive: { color: colors.primary, fontWeight: '700' },
     timelineLine: { width: 2, height: 16, backgroundColor: colors.border, marginLeft: 9, marginVertical: 2 },
-    timelineCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    timelineCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
     timelineCircleActive: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
 
-    itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-    itemName: { fontSize: 14, fontWeight: '700', color: colors.text, flex: 1 },
-    itemQty: { fontSize: 13, color: colors.textDim, marginTop: 2 },
-    itemCost: { fontSize: 15, fontWeight: '700', color: colors.text, marginLeft: 12 },
+    itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+    itemName: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.text, flex: 1 },
+    itemQty: { fontSize: FONT_SIZE.body, color: colors.textDim },
+    itemCost: { fontSize: FONT_SIZE.xl, fontWeight: '700', color: colors.text, marginLeft: SPACING.md },
     
-    actionsContainer: { flexDirection: 'row', gap: 12, marginTop: 10 },
+    actionsContainer: { flexDirection: 'row', gap: SPACING.md, padding: SPACING.lg },
     actionBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 14,
-      borderRadius: 8,
+      paddingVertical: SPACING.md,
+      borderRadius: RADIUS.md,
       borderWidth: 1,
-      gap: 6,
+      gap: SPACING.sm,
     },
-    actionBtnText: { fontSize: 14, fontWeight: '700' },
-    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: 24, fontSize: 14 },
+    actionBtnText: { fontSize: FONT_SIZE.lg, fontWeight: '700' },
+    emptyText: { textAlign: 'center', color: colors.textDim, marginTop: SPACING.xl, fontSize: FONT_SIZE.lg },
   });
 
   if (!shipment) {
@@ -77,7 +78,7 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <StickyScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Info card */}
         <SectionHeader title="Overview" variant="uppercase" />
         <View style={styles.card}>
@@ -153,7 +154,9 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
           )}
         </View>
 
-        {/* Actions */}
+        
+      </StickyScrollView>
+      {/* Actions */}
         <View style={styles.actionsContainer}>
           {shipment.status !== 'received' && (
             <TouchableOpacity 
@@ -176,7 +179,6 @@ export default function ShipmentDetailScreen({ route, navigation }: Props) {
             <Text style={[styles.actionBtnText, { color: colors.error }]}>Report Issue</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
     </View>
   );
 }

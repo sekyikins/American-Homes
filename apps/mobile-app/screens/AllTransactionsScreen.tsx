@@ -10,7 +10,7 @@ import EmptyState from '../components/EmptyState';
 type Props = NativeStackScreenProps<RootStackParamList, 'AllTransactions'>;
 
 export default function AllTransactionsScreen({ navigation }: Props) {
-  const { colors, commonStyles } = useTheme();
+  const { colors } = useTheme();
   const { walletTransactions } = useMockData();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -34,18 +34,17 @@ export default function AllTransactionsScreen({ navigation }: Props) {
       backgroundColor: colors.card,
     },
     statVal: {
-      fontSize: 18,
+      fontSize: FONT_SIZE.xl,
       fontWeight: 'bold',
       color: colors.text,
       fontVariant: ['tabular-nums'],
     },
     statLbl: {
-      fontSize: 12,
+      fontSize: FONT_SIZE.md,
       color: colors.primary,
       fontWeight: '600',
-      marginTop: 2,
     },
-    listContent: { padding: SPACING.sm, paddingBottom: 32 },
+    listContent: { padding: SPACING.sm },
     transactionCard: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -53,8 +52,8 @@ export default function AllTransactionsScreen({ navigation }: Props) {
       borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 10,
-      marginBottom: 12,
+      padding: SPACING.md,
+      marginBottom: SPACING.md,
     },
     iconContainer: {
       width: 40,
@@ -62,12 +61,12 @@ export default function AllTransactionsScreen({ navigation }: Props) {
       borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
+      marginRight: SPACING.md,
     },
     detailsContainer: { flex: 1 },
     reason: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.text },
-    date: { fontSize: FONT_SIZE.md, color: colors.textDim, marginTop: 4 },
-    amount: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    date: { fontSize: FONT_SIZE.md, color: colors.textDim, marginTop: SPACING.xs },
+    amount: { fontSize: FONT_SIZE.lg, fontWeight: '700', fontVariant: ['tabular-nums'] },
   });
 
   const onRefresh = () => {

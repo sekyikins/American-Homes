@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { useTheme, SPACING, RADIUS, FONT_SIZE } from '../styles/theme';
 import { Check } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -20,22 +20,22 @@ export default function LanguageSelectionScreen({ navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16 },
+    content: { padding: SPACING.lg },
     langBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 10,
-      padding: 16,
-      marginBottom: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.lg,
+      marginBottom: SPACING.md,
     },
     langBtnActive: {
       borderColor: colors.primary,
       backgroundColor: colors.primary + '15',
     },
-    langText: { fontSize: 16, fontWeight: '600', color: colors.text },
+    langText: { fontSize: FONT_SIZE.xl, fontWeight: '600', color: colors.text },
     langTextActive: { color: colors.primary, fontWeight: '700' },
   });
 

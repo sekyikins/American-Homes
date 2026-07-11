@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useTheme } from '../styles/theme';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme, SPACING, FONT_SIZE, RADIUS } from '../styles/theme';
 import { useMockData } from '../context/MockDataContext';
 import { ArrowUpDown, Hammer, FileWarning } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import SectionHeader from '../components/SectionHeader';
 import EmptyState from '../components/EmptyState';
+import StickyScrollView from '../components/StickyScrollView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetail'>;
 
@@ -30,59 +31,58 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { padding: 16 },
+    content: { padding: SPACING.lg },
     card: {
       backgroundColor: colors.card,
-      borderRadius: 12,
+      borderRadius: RADIUS.lg,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 16,
-      marginBottom: 16,
+      paddingHorizontal: SPACING.lg,
+      marginBottom: SPACING.lg,
     },
-    productName: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    productCategory: { fontSize: 13, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', marginBottom: 12 },
-    productDesc: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
-    statsRow: { flexDirection: 'row', gap: 12, marginVertical: 12 },
+    productName: { fontSize: FONT_SIZE.title, fontWeight: '700', color: colors.text, marginBottom: SPACING.xs },
+    productCategory: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', marginBottom: SPACING.md },
+    productDesc: { fontSize: FONT_SIZE.lg, color: colors.textMuted, lineHeight: 20 },
+    statsRow: { flexDirection: 'row', gap: SPACING.md, marginVertical: SPACING.md },
     statBox: {
       flex: 1,
       backgroundColor: colors.background,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      padding: 12,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
       alignItems: 'center',
     },
-    statValue: { fontSize: 18, fontWeight: '700', color: colors.text },
-    statLabel: { fontSize: 11, color: colors.textDim, marginTop: 4 },
-    variantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-    variantSku: { fontSize: 14, fontWeight: '700', color: colors.text },
-    variantName: { fontSize: 12, color: colors.textDim, marginTop: 2 },
+    statValue: { fontSize: FONT_SIZE.xl, fontWeight: '700', color: colors.text },
+    statLabel: { fontSize: FONT_SIZE.sm, color: colors.textDim, marginTop: SPACING.xs },
+    variantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+    variantSku: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.text },
+    variantName: { fontSize: FONT_SIZE.md, color: colors.textDim },
     priceRight: { marginLeft: 'auto', alignItems: 'flex-end' },
-    retailPrice: { fontSize: 14, fontWeight: '700', color: colors.success },
-    costPrice: { fontSize: 12, color: colors.textDim, marginTop: 2 },
-    batchRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-    batchInfo: { fontSize: 13, color: colors.text },
-    batchRemaining: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
-    unitRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-    serialText: { fontSize: 13, color: colors.text, flex: 1 },
+    retailPrice: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: colors.success },
+    costPrice: { fontSize: FONT_SIZE.md, color: colors.textDim },
+    batchRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+    batchInfo: { fontSize: FONT_SIZE.body, color: colors.text },
+    batchRemaining: { fontSize: FONT_SIZE.body, fontWeight: '700', color: colors.textMuted },
+    unitRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+    serialText: { fontSize: FONT_SIZE.body, color: colors.text, flex: 1 },
     unitStatus: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 6,
+      paddingHorizontal: SPACING.sm,
+      borderRadius: RADIUS.sm,
     },
-    unitStatusText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-    actionsContainer: { flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 20 },
+    unitStatusText: { fontSize: FONT_SIZE.xs, fontWeight: '700', textTransform: 'uppercase' },
+    actionsContainer: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm, marginBottom: SPACING.xl },
     actionBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
-      borderRadius: 8,
+      paddingVertical: SPACING.md,
+      borderRadius: RADIUS.md,
       borderWidth: 1,
-      gap: 6,
+      gap: SPACING.sm,
     },
-    actionBtnText: { fontSize: 13, fontWeight: '700' },
+    actionBtnText: { fontSize: FONT_SIZE.body, fontWeight: '700' },
   });
 
   if (!product) {
@@ -95,7 +95,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <StickyScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Info card */}
         <View style={styles.card}>
           <Text style={styles.productCategory}>{product.category}</Text>
@@ -210,7 +210,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             </View>
           </>
         )}
-      </ScrollView>
+      </StickyScrollView>
     </View>
   );
 }
